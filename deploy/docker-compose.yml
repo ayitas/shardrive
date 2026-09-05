@@ -1,0 +1,89 @@
+name: shardrive
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-shardrive}
+      POSTGRES_USER: ${POSTGRES_USER:-shardrive}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-shardrive-dev-only}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+    ports:
+      - "127.0.0.1:${SHARDRIVE_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ../apps/backend
+    environment:
+      SHARDRIVE_HTTP_ADDRESS: ${SHARDRIVE_HTTP_ADDRESS:-:8080}
+      SHARDRIVE_DATABASE_URL: postgres://${POSTGRES_USER:-shardrive}:${POSTGRES_PASSWORD:-shardrive-dev-only}@postgres:5432/${POSTGRES_DB:-shardrive}?sslmode=disable
+      SHARDRIVE_DB_CONNECT_TIMEOUT: ${SHARDRIVE_DB_CONNECT_TIMEOUT:-10s}
+      SHARDRIVE_DB_HEALTH_TIMEOUT: ${SHARDRIVE_DB_HEALTH_TIMEOUT:-2s}
+      SHARDRIVE_SHUTDOWN_TIMEOUT: ${SHARDRIVE_SHUTDOWN_TIMEOUT:-10s}
+      SHARDRIVE_CHUNK_SIZE_BYTES: ${SHARDRIVE_CHUNK_SIZE_BYTES:-33554432}
+      SHARDRIVE_UPLOAD_SESSION_LIFETIME: ${SHARDRIVE_UPLOAD_SESSION_LIFETIME:-24h}
+      SHARDRIVE_GLOBAL_UPLOAD_LIMIT: ${SHARDRIVE_GLOBAL_UPLOAD_LIMIT:-6}
+      SHARDRIVE_LOCAL_STORAGE_ROOT: /data/storage
+      SHARDRIVE_LOCAL_ACCOUNT_USER_ID: ${SHARDRIVE_LOCAL_ACCOUNT_USER_ID:-}
+      SHARDRIVE_LOCAL_ACCOUNT_COUNT: ${SHARDRIVE_LOCAL_ACCOUNT_COUNT:-5}
+      SHARDRIVE_LOCAL_ACCOUNT_QUOTA_BYTES: ${SHARDRIVE_LOCAL_ACCOUNT_QUOTA_BYTES:-1073741824}
+      SHARDRIVE_LOCAL_MAX_UPLOAD_WORKERS: ${SHARDRIVE_LOCAL_MAX_UPLOAD_WORKERS:-2}
+      SHARDRIVE_LOCAL_MAX_DOWNLOAD_WORKERS: ${SHARDRIVE_LOCAL_MAX_DOWNLOAD_WORKERS:-1}
+      SHARDRIVE_COOKIE_SECURE: ${SHARDRIVE_COOKIE_SECURE:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${SHARDRIVE_HTTP_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "su-exec", "shardrive", "/shardrive-api", "healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - local-storage:/data/storage
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../apps/frontend
+    environment:
+      PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:-http://localhost:${SHARDRIVE_HTTP_PORT:-8080}}
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${SHARDRIVE_FRONTEND_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ../apps/backend
+    entrypoint: ["/docker-entrypoint.sh"]
+    command: ["/shardrive-worker"]
+    environment:
+      SHARDRIVE_DATABASE_URL: postgres://${POSTGRES_USER:-shardrive}:${POSTGRES_PASSWORD:-shardrive-dev-only}@postgres:5432/${POSTGRES_DB:-shardrive}?sslmode=disable
+      SHARDRIVE_DB_CONNECT_TIMEOUT: ${SHARDRIVE_DB_CONNECT_TIMEOUT:-10s}
+      SHARDRIVE_LOCAL_STORAGE_ROOT: /data/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - local-storage:/data/storage
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  local-storage:

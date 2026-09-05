@@ -26,6 +26,19 @@ go.work.sum
 
 # env file
 .env
+.env.*
+!.env.example
+
+# Local runtime data
+data/
+
+# Build output
+bin/
+
+# Frontend dependencies and generated SvelteKit output
+apps/frontend/node_modules/
+apps/frontend/.svelte-kit/
+apps/frontend/build/
 
 # Editor/IDE
 # .idea/

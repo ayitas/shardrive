@@ -1,0 +1,7 @@
+DROP TABLE IF EXISTS jobs;
+DROP TABLE IF EXISTS chunks;
+DROP TABLE IF EXISTS upload_sessions;
+DROP TABLE IF EXISTS files;
+DROP TABLE IF EXISTS storage_accounts;
+DROP TABLE IF EXISTS directories;
+DROP TABLE IF EXISTS users;
