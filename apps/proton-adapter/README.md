@@ -58,6 +58,13 @@ opt-in `unsafe_file` store; it must not become the default production
 credential store. The default production path remains an OS secret store or
 the adapter-owned encrypted store.
 
+The local test machine has now completed the official CLI browser login. The
+CLI's OS-secret-store snapshot was imported into the adapter vault under an
+internal test account reference and recovered in a separate process. Only
+metadata was printed; the token values remain encrypted in `/tmp` and are not
+part of the repository. This proves session snapshot compatibility and vault
+recovery, not yet SDK client construction or a remote file transfer.
+
 The factory intentionally uses a structural generic contract instead of
 importing the SDK's declaration graph into the adapter compiler. SDK 0.21.0's
 public declaration entry currently pulls TypeScript source from its crypto peer,

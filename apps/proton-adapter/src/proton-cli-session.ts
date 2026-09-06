@@ -2,10 +2,12 @@ import { readFile } from 'node:fs/promises';
 import type { FileSessionStore, SessionPayload } from './session-vault.js';
 
 export interface ProtonCliSession extends SessionPayload {
-	uid: string;
-	accessToken: string;
+	session: {
+		uid: string;
+		accessToken: string;
+		refreshToken?: string;
+	};
 	userKeyPassword: string;
-	refreshToken?: string;
 	cachePassword?: string;
 	telemetryEnabled?: boolean;
 }
@@ -25,20 +27,23 @@ export function parseProtonCliSessionSnapshot(raw: string): ProtonCliSession | u
 		return undefined;
 	}
 
-	if (!isRecord(value) || !isNonEmptyString(value.uid) || !isNonEmptyString(value.accessToken)) {
+	if (!isRecord(value) || !isRecord(value.session)) {
 		return undefined;
 	}
+	if (!isNonEmptyString(value.session.uid) || !isNonEmptyString(value.session.accessToken)) return undefined;
 	if (!isNonEmptyString(value.userKeyPassword)) return undefined;
-	if (value.refreshToken !== undefined && !isNonEmptyString(value.refreshToken)) return undefined;
+	if (value.session.refreshToken !== undefined && !isNonEmptyString(value.session.refreshToken)) return undefined;
 	if (value.cachePassword !== undefined && !isNonEmptyString(value.cachePassword)) return undefined;
 	if (value.telemetryEnabled !== undefined && typeof value.telemetryEnabled !== 'boolean') return undefined;
 
 	const session: ProtonCliSession = {
-		uid: value.uid,
-		accessToken: value.accessToken,
+		session: {
+			uid: value.session.uid,
+			accessToken: value.session.accessToken
+		},
 		userKeyPassword: value.userKeyPassword
 	};
-	if (value.refreshToken !== undefined) session.refreshToken = value.refreshToken;
+	if (value.session.refreshToken !== undefined) session.session.refreshToken = value.session.refreshToken;
 	if (value.cachePassword !== undefined) session.cachePassword = value.cachePassword;
 	if (value.telemetryEnabled !== undefined) session.telemetryEnabled = value.telemetryEnabled;
 	return session;

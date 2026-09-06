@@ -560,6 +560,13 @@ stores only `credential_ref`, and no password or provider token crosses gRPC.
 This is a design decision only; session recovery remains unproven until a
 real one-account test environment is available.
 
+The official CLI login was verified locally on 2026-09-06. Its OS-secret-store
+snapshot was validated and imported into the adapter's encrypted vault using a
+test `credential_ref`; a separate process recovered it with file mode `0600`.
+No token values were printed or committed. This proves the local session import
+and vault recovery path, but not Proton SDK client construction or remote file
+transfer.
+
 Phase 2A implementation slice:
 
 - [x] adapter TypeScript package/toolchain scaffold
@@ -570,6 +577,7 @@ Phase 2A implementation slice:
 - [x] public-export bundle smoke test
 - [x] injected Proton SDK client factory and auth-required state
 - [x] validated Proton CLI session snapshot importer
+- [x] imported and recovered one real CLI session into the encrypted vault
 - [ ] live Proton session bootstrap and SDK client construction
 
 Factory compatibility note: SDK 0.21.0's declaration graph currently pulls

@@ -9,9 +9,7 @@ import {
 test('parses the official CLI session fields without retaining unknown fields', () => {
 	const session = parseProtonCliSessionSnapshot(
 		JSON.stringify({
-			uid: 'uid-1',
-			accessToken: 'access-token',
-			refreshToken: 'refresh-token',
+			session: { uid: 'uid-1', accessToken: 'access-token', refreshToken: 'refresh-token' },
 			userKeyPassword: 'user-key-password',
 			cachePassword: 'cache-password',
 			telemetryEnabled: false,
@@ -20,9 +18,7 @@ test('parses the official CLI session fields without retaining unknown fields', 
 	);
 
 	assert.deepEqual(session, {
-		uid: 'uid-1',
-		accessToken: 'access-token',
-		refreshToken: 'refresh-token',
+		session: { uid: 'uid-1', accessToken: 'access-token', refreshToken: 'refresh-token' },
 		userKeyPassword: 'user-key-password',
 		cachePassword: 'cache-password',
 		telemetryEnabled: false
@@ -33,9 +29,9 @@ test('rejects malformed CLI sessions before writing them', async () => {
 	let writes = 0;
 	const store = { put: async () => void writes++ };
 
-	assert.equal(parseProtonCliSessionSnapshot('{"uid":"uid-1"}'), undefined);
+	assert.equal(parseProtonCliSessionSnapshot('{"session":{"uid":"uid-1"}}'), undefined);
 	await assert.rejects(
-		() => importProtonCliSessionSnapshot('account-1', '{"uid":"uid-1"}', store),
+		() => importProtonCliSessionSnapshot('account-1', '{"session":{"uid":"uid-1"}}', store),
 		(error: InvalidProtonCliSessionError) => error instanceof InvalidProtonCliSessionError
 	);
 	assert.equal(writes, 0);
@@ -51,8 +47,8 @@ test('imports a valid CLI session directly into the encrypted store boundary', a
 
 	await importProtonCliSessionSnapshot(
 		'account-1',
-		JSON.stringify({ uid: 'uid-1', accessToken: 'access-token', userKeyPassword: 'user-key-password' }),
+		JSON.stringify({ session: { uid: 'uid-1', accessToken: 'access-token' }, userKeyPassword: 'user-key-password' }),
 		store
 	);
-	assert.deepEqual(stored, { uid: 'uid-1', accessToken: 'access-token', userKeyPassword: 'user-key-password' });
+	assert.deepEqual(stored, { session: { uid: 'uid-1', accessToken: 'access-token' }, userKeyPassword: 'user-key-password' });
 });
