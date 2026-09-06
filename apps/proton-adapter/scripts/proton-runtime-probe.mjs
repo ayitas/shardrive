@@ -1,6 +1,7 @@
 import { execFile, execFileSync } from 'node:child_process';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
@@ -19,11 +20,14 @@ const entryPath = path.join(tempDir, 'entry.ts');
 const bundlePath = path.join(tempDir, 'bundle.js');
 const sdkIndex = JSON.stringify(`${resolvedSourceDir}/client/js/src/index.ts`);
 const accountIndex = JSON.stringify(`${resolvedSourceDir}/incubating/account/js/src/index.ts`);
+const backendIndex = JSON.stringify(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../src/proton-storage-backend.ts'));
 const entry = `
+import { createHash, randomUUID } from 'node:crypto';
 import { CryptoProxy } from '@protontech/crypto';
 import { Api as CryptoApi } from '@protontech/crypto/proxy/endpoint/api.ts';
 import { MemoryCache, NullFeatureFlagProvider, OpenPGPCryptoWithCryptoProxy, ProtonDriveClient } from ${sdkIndex};
 import { ApiClient, initAccount } from ${accountIndex};
+import { ProtonStorageBackend } from ${backendIndex};
 class Credentials {
   private callbacks = new Set<() => void>();
   constructor(private snapshot: { userKeyPassword: string; session: { uid: string; accessToken: string; refreshToken?: string }; telemetryEnabled?: boolean }) {}
@@ -40,7 +44,7 @@ const credentials = new Credentials(JSON.parse(raw));
 const logger = { debug() {}, info() {}, warn() {}, error() {} };
 const apiClient = new ApiClient({ baseUrl: 'drive-api.proton.me', appVersion: 'cli-drive@0.8.0', credentials, logger, headers: { 'x-pm-drive-sdk-version': '0.21.0' } });
 CryptoApi.init({}); CryptoProxy.setEndpoint(new CryptoApi(), (endpoint) => endpoint.clearKeyStore());
-const { addresses, srp } = await initAccount({ authClientId: 'cli-drive', apiClient, credentials, cryptoProxy: CryptoProxy, logger });
+const { addresses, srp, accountApi } = await initAccount({ authClientId: 'cli-drive', apiClient, credentials, cryptoProxy: CryptoProxy, logger });
 const client = new ProtonDriveClient({
   config: { baseUrl: 'drive-api.proton.me', clientUid: 'shardrive-runtime-probe' },
   httpClient: {
@@ -51,8 +55,35 @@ const client = new ProtonDriveClient({
   account: { getOwnPrimaryAddress: () => addresses.getOwnPrimaryAddress(), getOwnAddresses: () => addresses.getOwnAddresses(), getOwnAddress: (value: string) => addresses.getOwnAddress(value), hasProtonAccount: (value: string) => addresses.hasProtonAccount(value), getPublicKeys: (value: string, forceRefresh?: boolean) => addresses.getPublicKeys(value, forceRefresh) },
   srpModule: srp, featureFlagProvider: new NullFeatureFlagProvider(),
 });
-const root = await client.getMyFilesRootFolder();
-console.log(JSON.stringify({ constructed: true, rootUidLength: root.uid.length }));
+const backend = new ProtonStorageBackend(async () => ({
+  client,
+  health: async () => { await client.getMyFilesRootFolder(); },
+  usage: async () => {
+    const users = await accountApi.users();
+    const user = users.User;
+    if (!user) throw new Error('Proton account response did not include user quota');
+    return { totalBytes: user.MaxSpace, usedBytes: user.UsedSpace, freeBytes: Math.max(0, user.MaxSpace - user.UsedSpace) };
+  },
+}));
+await backend.health({ accountId: 'runtime-probe' });
+const usage = await backend.usage({ accountId: 'runtime-probe' });
+console.log(JSON.stringify({ constructed: true, usage }));
+if (process.env.SHARDRIVE_PROTON_LIVE_TRANSFER === '1') {
+  const payload = Buffer.from('Shardrive Proton one-account transfer gate\\n');
+  const objectName = randomUUID();
+  let remote;
+  try {
+    remote = await backend.upload({ accountId: 'runtime-probe', objectId: objectName, sizeBytes: payload.byteLength, chunks: (async function* () { yield payload; })() });
+    const downloaded = [];
+    for await (const chunk of backend.download({ accountId: 'runtime-probe', objectId: remote.objectId })) downloaded.push(chunk);
+    const originalHash = createHash('sha256').update(payload).digest('hex');
+    const downloadedHash = createHash('sha256').update(Buffer.concat(downloaded)).digest('hex');
+    if (originalHash !== downloadedHash) throw new Error('live Proton transfer checksum mismatch');
+    console.log(JSON.stringify({ transferGate: true, checksumMatch: true, bytes: payload.byteLength }));
+  } finally {
+    if (remote) await backend.delete({ accountId: 'runtime-probe', objectId: remote.objectId });
+  }
+}
 `;
 await writeFile(entryPath, entry, { mode: 0o600 });
 

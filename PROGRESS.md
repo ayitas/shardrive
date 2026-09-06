@@ -1242,6 +1242,12 @@ and read the My Files root successfully with HTTP 200. Adapter checks passed
 with 10 tests, and the public SDK bundle smoke passed. This is still read-only
 live runtime proof; the backend stream bridge is fake-runtime tested, while
 live Proton upload/download/delete/stat/usage/health remains the next gate.
+
+The probe now wires `ProtonStorageBackend.health()` and `.usage()` to the live
+official runtime. The read-only gate bundled 227 modules, received HTTP 200
+from the Proton root API, and returned a live quota observation. An opt-in
+transfer gate is present but disabled by default; it creates a generated test
+object, verifies download SHA-256, and deletes the object in `finally`.
 ```
 
 All commands completed successfully; no blockers remain for this milestone.

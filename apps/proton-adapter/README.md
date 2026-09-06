@@ -111,6 +111,20 @@ account, and crypto runtime, reads the existing OS-secret-store session,
 constructs a `ProtonDriveClient`, and reads only the My Files root metadata.
 It prints no credential, token, filename, or node ID.
 
+The probe also contains an opt-in live transfer gate. Only run it when a test
+object may be created and permanently deleted in the logged-in Proton account:
+
+```text
+PROTON_SDK_SOURCE_DIR=/path/to/proton-sdk \
+SHARDRIVE_PROTON_LIVE_TRANSFER=1 \
+npm run proton:runtime:probe
+```
+
+The gate uploads a small generated payload, downloads it through the backend,
+compares SHA-256, and deletes the resulting Proton node in a `finally` block.
+It is disabled by default and has not been run as part of ordinary adapter
+validation.
+
 `src/proton-storage-backend.ts` now provides the provider-neutral stream bridge
 for the official SDK shape. It uses the SDK's uploader/downloader streams,
 performs Proton trash-then-permanent-delete, maps node metadata to Shardrive
