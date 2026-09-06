@@ -4,11 +4,12 @@ Last updated: 2026-09-06
 
 ## Current State
 
-**Phase:** Phase 2A — Proton SDK investigation and one-account spike preparation
+**Phase:** Phase 2B — one-account Proton product integration
 **Status:** Phase 0 COMPLETE; Phase 1 product release-candidate browser gate passed;
-Phase 2A investigation and provider-neutral boundary design are complete. The
-one-account Proton adapter implementation remains intentionally gated on an
-immutable SDK snapshot and a testable session-recovery environment.
+Phase 2A SDK investigation, provider-neutral gRPC boundary, live one-account
+transfer, restart/session recovery, encrypted session setup, and account
+lifecycle wiring are complete. Multi-account Proton placement remains out of
+scope until the one-account product E2E gate is complete.
 
 Change review completed: frontend/auth/directory additions were audited, API
 routes were synchronized in README, and no code rollback was required.
@@ -557,15 +558,15 @@ bindings remain deferred until the adapter runtime is selected.
 The session handoff design is now recorded in `apps/proton-adapter/README.md`:
 the adapter owns authentication and encrypted session persistence, PostgreSQL
 stores only `credential_ref`, and no password or provider token crosses gRPC.
-This is a design decision only; session recovery remains unproven until a
-real one-account test environment is available.
+The later one-account live transfer and adapter restart gates below prove this
+handoff without exposing the session values.
 
 The official CLI login was verified locally on 2026-09-06. Its OS-secret-store
 snapshot was validated and imported into the adapter's encrypted vault using a
 test `credential_ref`; a separate process recovered it with file mode `0600`.
-No token values were printed or committed. This proves the local session import
-and vault recovery path, but not Proton SDK client construction or remote file
-transfer.
+No token values were printed or committed. This was the initial local proof;
+the later source-pinned runtime and cross-language transfer gates below extend
+it to live Proton operations.
 
 Phase 2A implementation slice:
 
@@ -579,7 +580,7 @@ Phase 2A implementation slice:
 - [x] validated Proton CLI session snapshot importer
 - [x] imported and recovered one real CLI session into the encrypted vault
 - [x] source-pinned live read-only ProtonDriveClient construction probe
-- [ ] live Proton session bootstrap and SDK client construction
+- [x] live Proton session bootstrap and SDK client construction
 
 Factory compatibility note: SDK 0.21.0's declaration graph currently pulls
 TypeScript source from its crypto peer and fails this package's strict compiler
@@ -603,15 +604,13 @@ Phase 2B boundary runtime slice:
 - [x] unary delete/stat/usage/health handler wiring
 - [x] provider-neutral error to gRPC status translation
 - [x] in-process gRPC wire test with fake backend
-- [ ] Proton SDK-backed storage backend
+- [x] Proton SDK-backed storage backend
 
 The adapter now contains a provider-neutral `ProtonStorageBackend` stream
 bridge. It maps the official SDK uploader/downloader, node stat, trash plus
 permanent delete, and injected health/quota operations into the adapter
-contract. Its fake-runtime test proves upload/download streaming and all
-provider operations without claiming a live remote transfer. The remaining
-work is wiring the source-pinned runtime factory to this backend and proving
-one-account checksum/restart/cleanup behavior against Proton.
+contract. The fake-runtime test and later live one-account gates prove
+provider operations, checksum, restart recovery, and cleanup against Proton.
 
 Spike exit criteria:
 
@@ -1241,7 +1240,8 @@ The source-pinned probe bundled 225 modules, constructed `ProtonDriveClient`,
 and read the My Files root successfully with HTTP 200. Adapter checks passed
 with 10 tests, and the public SDK bundle smoke passed. This is still read-only
 live runtime proof; the backend stream bridge is fake-runtime tested, while
-live Proton upload/download/delete/stat/usage/health remains the next gate.
+At that earlier checkpoint, live Proton transfer remained the next gate; the
+later cross-language and restart gates below now supersede that status.
 
 The probe now wires `ProtonStorageBackend.health()` and `.usage()` to the live
 official runtime. The read-only gate bundled 227 modules, received HTTP 200
@@ -1337,10 +1337,11 @@ full `go test ./...`, `go vet ./...`, and `git diff --check`.
 The lifecycle UI passed `npm run check`, `npm run build`, and the Chromium plus
 Firefox Phase 1 browser gate (`2 passed`).
 
-Next three tasks are: add account/provider health state synchronization to the
-Go account repository for Proton failures, wire one configured Proton account
-into the product account lifecycle, and only then expand to multi-account
-placement. The cross-language and restart/session-recovery gates are complete.
+Next three tasks are: add a browser/API E2E gate for connecting one Proton
+account and refreshing its live status, harden adapter/account operational
+failure recovery, and only then expand to multi-account Proton placement. The
+cross-language, restart/session-recovery, session setup, and account lifecycle
+gates are complete.
 
 The supported local session setup is now executable as
 `npm run proton:session:import`. It reads the official CLI OS keychain entry,
