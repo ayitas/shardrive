@@ -123,7 +123,8 @@ npm run proton:runtime:probe
 The gate uploads a small generated payload, downloads it through the backend,
 compares SHA-256, and deletes the resulting Proton node in a `finally` block.
 It is disabled by default and has not been run as part of ordinary adapter
-validation.
+validation. The probe installs empty SDK log handlers so transfer tokens and
+other request details are not written to stdout.
 
 `src/proton-storage-backend.ts` now provides the provider-neutral stream bridge
 for the official SDK shape. It uses the SDK's uploader/downloader streams,

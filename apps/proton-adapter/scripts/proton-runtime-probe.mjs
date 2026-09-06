@@ -26,6 +26,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { CryptoProxy } from '@protontech/crypto';
 import { Api as CryptoApi } from '@protontech/crypto/proxy/endpoint/api.ts';
 import { MemoryCache, NullFeatureFlagProvider, OpenPGPCryptoWithCryptoProxy, ProtonDriveClient } from ${sdkIndex};
+import { Telemetry } from ${JSON.stringify(`${resolvedSourceDir}/client/js/src/telemetry.ts`)};
 import { ApiClient, initAccount } from ${accountIndex};
 import { ProtonStorageBackend } from ${backendIndex};
 class Credentials {
@@ -45,13 +46,14 @@ const logger = { debug() {}, info() {}, warn() {}, error() {} };
 const apiClient = new ApiClient({ baseUrl: 'drive-api.proton.me', appVersion: 'cli-drive@0.8.0', credentials, logger, headers: { 'x-pm-drive-sdk-version': '0.21.0' } });
 CryptoApi.init({}); CryptoProxy.setEndpoint(new CryptoApi(), (endpoint) => endpoint.clearKeyStore());
 const { addresses, srp, accountApi } = await initAccount({ authClientId: 'cli-drive', apiClient, credentials, cryptoProxy: CryptoProxy, logger });
+const telemetry = new Telemetry({ logHandlers: [], metricHandlers: [] });
 const client = new ProtonDriveClient({
   config: { baseUrl: 'drive-api.proton.me', clientUid: 'shardrive-runtime-probe' },
   httpClient: {
     fetchJson: (request) => apiClient.authenticatedRequest(request.url, { method: request.method, headers: request.headers, ...(request.json !== undefined ? { json: request.json } : {}), ...(request.body !== undefined && request.json === undefined ? { body: request.body } : {}), timeout: request.timeoutMs, signal: request.signal, throwHttpErrors: false }),
     fetchBlob: (request) => apiClient.authenticatedRequest(request.url, { method: request.method, headers: request.headers, body: request.body, timeout: request.timeoutMs, signal: request.signal, throwHttpErrors: false }),
   },
-  entitiesCache: new MemoryCache(), cryptoCache: new MemoryCache(), openPGPCryptoModule: new OpenPGPCryptoWithCryptoProxy(CryptoProxy),
+  entitiesCache: new MemoryCache(), cryptoCache: new MemoryCache(), telemetry, openPGPCryptoModule: new OpenPGPCryptoWithCryptoProxy(CryptoProxy),
   account: { getOwnPrimaryAddress: () => addresses.getOwnPrimaryAddress(), getOwnAddresses: () => addresses.getOwnAddresses(), getOwnAddress: (value: string) => addresses.getOwnAddress(value), hasProtonAccount: (value: string) => addresses.hasProtonAccount(value), getPublicKeys: (value: string, forceRefresh?: boolean) => addresses.getPublicKeys(value, forceRefresh) },
   srpModule: srp, featureFlagProvider: new NullFeatureFlagProvider(),
 });

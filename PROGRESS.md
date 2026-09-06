@@ -1248,6 +1248,16 @@ official runtime. The read-only gate bundled 227 modules, received HTTP 200
 from the Proton root API, and returned a live quota observation. An opt-in
 transfer gate is present but disabled by default; it creates a generated test
 object, verifies download SHA-256, and deletes the object in `finally`.
+
+The first live transfer exposed that the SDK default telemetry logger can emit
+upload request details, including transfer tokens. No token was stored or
+committed, but the probe now supplies empty SDK log/metric handlers before any
+future live gate so credentials and request details stay out of stdout.
+
+Post-fix verification passed with `npm run check`, `npm run build`, `npm test`
+(10 tests), `npm run sdk:smoke`, and the read-only
+`PROTON_SDK_SOURCE_DIR=/tmp/shardrive-proton-sdk-source npm run proton:runtime:probe`.
+The probe output contained only the bundle summary and live quota observation.
 ```
 
 All commands completed successfully; no blockers remain for this milestone.
