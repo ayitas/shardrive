@@ -3,6 +3,7 @@ package account
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -50,6 +51,12 @@ func (s refreshProviderStub) Refresh(context.Context, Account) (RefreshObservati
 	return s.observation, nil
 }
 
+type failingRefreshProviderStub struct{}
+
+func (failingRefreshProviderStub) Refresh(context.Context, Account) (RefreshObservation, error) {
+	return RefreshObservation{}, errors.New("adapter unavailable")
+}
+
 func TestRefreshPersistsProviderNeutralObservation(t *testing.T) {
 	const userID = "00000000-0000-4000-8000-000000000001"
 	repository := &refreshRepositoryStub{accounts: []Account{{ID: "account-1", UserID: userID, Name: "local-1", Provider: "local"}}}
@@ -66,6 +73,22 @@ func TestRefreshPersistsProviderNeutralObservation(t *testing.T) {
 	}
 	if repository.refreshed.State != StateActive || repository.refreshed.UsedBytes != 40 {
 		t.Fatalf("persisted refresh = %+v", repository.refreshed)
+	}
+}
+
+func TestRefreshPersistsOfflineStateWhenRefresherFails(t *testing.T) {
+	const userID = "00000000-0000-4000-8000-000000000001"
+	repository := &refreshRepositoryStub{accounts: []Account{{ID: "account-1", UserID: userID, State: StateActive, TotalBytes: 100, UsedBytes: 40, FreeBytes: 60}}}
+	handler := NewHandler(repository, userID, failingRefreshProviderStub{})
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/accounts/account-1/refresh", nil)
+	request.SetPathValue("id", "account-1")
+	response := httptest.NewRecorder()
+	handler.Refresh(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", response.Code)
+	}
+	if repository.refreshed.State != StateOffline || repository.refreshed.ErrorCode == nil || *repository.refreshed.ErrorCode != "refresh_failed" {
+		t.Fatalf("persisted failure = %+v", repository.refreshed)
 	}
 }
 

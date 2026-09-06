@@ -154,6 +154,7 @@
 			pendingSessions = await reconcilePendingSessions(await listUploadSessions());
 			await api.me();
 			authenticated = true;
+			pendingSessions = await loadPendingSessions();
 			await loadDirectory(null);
 		} catch {
 			loading = false;
@@ -179,6 +180,19 @@
 		return active.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 	}
 
+	async function loadPendingSessions(): Promise<PersistedUploadSession[]> {
+		const [localSessions, serverResponse] = await Promise.all([listUploadSessions(), api.listActiveUploads()]);
+		const merged = new Map(localSessions.map((session) => [session.uploadId, session]));
+		for (const upload of serverResponse.uploads) {
+			merged.set(upload.uploadId, {
+				uploadId: upload.uploadId, fileId: upload.fileId, name: upload.name, size: upload.sizeBytes,
+				chunkSize: upload.chunkSize, chunkCount: upload.chunkCount,
+				completedIndexes: upload.completedIndexes, updatedAt: new Date().toISOString()
+			});
+		}
+		return reconcilePendingSessions([...merged.values()]);
+	}
+
 	async function signIn(): Promise<void> {
 		submitting = true;
 		error = '';
@@ -186,6 +200,7 @@
 			await api.login(email, password);
 			password = '';
 			authenticated = true;
+			pendingSessions = await loadPendingSessions();
 			await loadDirectory(null);
 		} catch (cause) {
 			error = cause instanceof Error ? cause.message : 'Could not sign in';
@@ -231,6 +246,18 @@
 				pendingSessions = pendingSessions.filter((session) => session.uploadId !== uploadId);
 			}
 		} catch (cause) { error = cause instanceof Error ? cause.message : 'Could not cancel upload'; }
+	}
+
+	async function removePendingUpload(session: PersistedUploadSession): Promise<void> {
+		error = '';
+		try {
+			await api.cancelUpload(session.uploadId);
+			await deleteUploadSession(session.uploadId);
+			pendingSessions = pendingSessions.filter((item) => item.uploadId !== session.uploadId);
+			await loadDirectory(currentDirectory);
+		} catch (cause) {
+			error = cause instanceof Error ? cause.message : 'Could not cancel pending upload';
+		}
 	}
 
 	async function deleteFile(file: FileSummary): Promise<void> {
@@ -288,7 +315,7 @@
 				<div class="upload-actions">{#if queue && upload.state === 'UPLOADING'}<button type="button" on:click={() => queue?.pause()}>Pause</button>{/if}{#if queue && upload.state === 'PAUSED'}<button type="button" on:click={() => queue?.resume()}>Resume</button>{/if}{#if queue && ['UPLOADING', 'PAUSED'].includes(upload.state)}<button type="button" on:click={() => void cancelUpload()}>Cancel upload</button>{/if}</div>
 			</section>
 		{/if}
-		{#if pendingSessions.length > 0}<aside class="pending-card"><div class="section-heading"><strong>Pending uploads</strong><span class="muted">{pendingSessions.length}</span></div><ul>{#each pendingSessions as session (session.uploadId)}<li><div><strong>{session.name}</strong><span class="muted">{formatBytes(session.size)} · {session.completedIndexes.length}/{session.chunkCount} chunks</span></div><div class="upload-actions"><button type="button" on:click={() => selectedPendingUploadId = session.uploadId}>{selectedPendingUploadId === session.uploadId ? 'Selected' : 'Resume'}</button><button type="button" on:click={() => void deleteUploadSession(session.uploadId).then(() => { pendingSessions = pendingSessions.filter((item) => item.uploadId !== session.uploadId); if (selectedPendingUploadId === session.uploadId) selectedPendingUploadId = ''; })}>Remove</button></div></li>{/each}</ul><p class="muted">Choose the matching original file, select Resume, then press Upload.</p></aside>{/if}
+		{#if pendingSessions.length > 0}<aside class="pending-card"><div class="section-heading"><strong>Pending uploads</strong><span class="muted">{pendingSessions.length}</span></div><ul>{#each pendingSessions as session (session.uploadId)}<li><div><strong>{session.name}</strong><span class="muted">{formatBytes(session.size)} · {session.completedIndexes.length}/{session.chunkCount} chunks</span></div><div class="upload-actions"><button type="button" on:click={() => selectedPendingUploadId = session.uploadId}>{selectedPendingUploadId === session.uploadId ? 'Selected' : 'Resume'}</button><button type="button" on:click={() => void removePendingUpload(session)}>Cancel upload</button></div></li>{/each}</ul><p class="muted">Choose the matching original file, select Resume, then press Upload.</p></aside>{/if}
 		<section aria-live="polite">
 		<nav aria-label="Directory path" class="breadcrumbs">
 			<button type="button" on:click={() => { path = []; void loadDirectory(null); }}>Root</button>

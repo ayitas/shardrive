@@ -446,6 +446,30 @@ func (s *Service) Get(ctx context.Context, userID, uploadID string) (Status, err
 	return Status{Session: session, CompletedIndexes: indexes}, nil
 }
 
+func (s *Service) ListActive(ctx context.Context, userID string) ([]ResumeStatus, error) {
+	normalizedUserID, err := domain.NormalizeUUID(userID)
+	if err != nil {
+		return nil, &domain.Error{Kind: domain.ErrInvalid, Op: "list", Entity: "upload user", Err: err}
+	}
+	values, err := s.uploads.ListActiveForUser(ctx, normalizedUserID)
+	if err != nil {
+		return nil, err
+	}
+	for index := range values {
+		chunks, chunkErr := s.chunks.ListByFile(ctx, values[index].FileID)
+		if chunkErr != nil {
+			return nil, chunkErr
+		}
+		values[index].CompletedIndexes = make([]int, 0, len(chunks))
+		for _, storedChunk := range chunks {
+			if storedChunk.State == chunk.StateStored {
+				values[index].CompletedIndexes = append(values[index].CompletedIndexes, storedChunk.Index)
+			}
+		}
+	}
+	return values, nil
+}
+
 func ChunkCount(sizeBytes, chunkSize int64) (int, error) {
 	if sizeBytes < 0 || chunkSize <= 0 {
 		return 0, &domain.Error{Kind: domain.ErrInvalid, Op: "calculate", Entity: "chunk count"}

@@ -1,5 +1,5 @@
 import { execFile, execFileSync, spawn } from 'node:child_process';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,7 +9,7 @@ const execFileAsync = promisify(execFile);
 const require = createRequire(import.meta.url);
 const sourceDir = process.env.PROTON_SDK_SOURCE_DIR;
 const expectedCommit = process.env.PROTON_SDK_EXPECTED_COMMIT ?? 'c8d03244938a6b4d107c755df8904d7d971ed1c2';
-const masterKey = process.env.SHARDRIVE_PROTON_MASTER_KEY_B64;
+const masterKey = await loadMasterKey();
 const sessionRoot = process.env.SHARDRIVE_PROTON_SESSION_ROOT;
 const grpcAddress = process.env.SHARDRIVE_PROTON_GRPC_ADDRESS ?? '0.0.0.0:50051';
 const protoIncludeDir = path.dirname(require.resolve('google-proto-files/google/protobuf/empty.proto'));
@@ -17,6 +17,10 @@ const protoIncludeDir = path.dirname(require.resolve('google-proto-files/google/
 if (!sourceDir) throw new Error('PROTON_SDK_SOURCE_DIR must point to the official Proton SDK source tree');
 if (!masterKey) throw new Error('SHARDRIVE_PROTON_MASTER_KEY_B64 is required');
 if (!sessionRoot) throw new Error('SHARDRIVE_PROTON_SESSION_ROOT is required');
+// The generated Bun entrypoint reads the validated key from its environment.
+// This assignment only propagates the already-loaded secret to the child
+// process; it is never logged or written to the bundle.
+process.env.SHARDRIVE_PROTON_MASTER_KEY_B64 = masterKey;
 const resolvedSourceDir = path.resolve(sourceDir);
 const actualCommit = execFileSync('git', ['-C', resolvedSourceDir, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 if (actualCommit !== expectedCommit) throw new Error(`official Proton SDK commit mismatch: expected ${expectedCommit}, got ${actualCommit}`);
@@ -28,7 +32,7 @@ const bundlePath = path.join(runtimeDir, 'bundle.mjs');
 const sdkIndex = JSON.stringify(`${resolvedSourceDir}/client/js/src/index.ts`);
 const accountIndex = JSON.stringify(`${resolvedSourceDir}/incubating/account/js/src/index.ts`);
 const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../src');
-const protoPath = path.resolve(sourceRoot, '../../../proto/storage.proto');
+const protoPath = process.env.SHARDRIVE_PROTO_PATH ?? path.resolve(sourceRoot, '../../../proto/storage.proto');
 process.env.SHARDRIVE_PROTO_INCLUDE_DIR = protoIncludeDir;
 process.env.SHARDRIVE_PROTO_PATH = protoPath;
 const grpcServer = JSON.stringify(`${sourceRoot}/grpc-server.ts`);
@@ -159,3 +163,11 @@ function runStreaming(command, args) {
 	});
 }
 function bunUnavailable(error) { return error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT'; }
+
+async function loadMasterKey() {
+  if (process.env.SHARDRIVE_PROTON_MASTER_KEY_B64) return process.env.SHARDRIVE_PROTON_MASTER_KEY_B64;
+  const file = process.env.SHARDRIVE_PROTON_MASTER_KEY_FILE;
+  if (!file) return undefined;
+  const value = (await readFile(file, 'utf8')).trim();
+  return value || undefined;
+}

@@ -1,12 +1,12 @@
 # Shardrive
 
-Shardrive is a self-hosted virtual storage pool. The current Phase 0 backend has
-PostgreSQL-backed domain repositories, a provider-neutral storage boundary, and
-a tested quota-limited LocalProvider. Runtime account wiring and the deterministic
-placement engine are complete. Upload creation, resume status, streaming chunk
-ingestion, sequential integrity-checked completion, and sequential
-integrity-checked download are implemented. The LocalProvider Phase 0 gate now
-passes an HTTP round trip with application-state recreation.
+Shardrive is a self-hosted virtual storage pool. The LocalProvider Phase 0
+engine and Phase 1 product UI are complete, and the one-account Proton Phase 2
+gate has passed. The backend has PostgreSQL-backed domain repositories, a
+provider-neutral storage boundary, deterministic placement, streaming chunk
+ingestion, sequential integrity-checked completion/download, and durable
+account lifecycle wiring. Phase 3 multi-account Proton is the next product
+slice.
 
 Phase 1 now includes a strict TypeScript SvelteKit scaffold and a typed API
 client. Frontend dependency installation and checks require Node.js 20+ and
@@ -34,6 +34,7 @@ During Phase 0 these routes use the existing user UUID configured by
 ```text
 POST /api/v1/uploads
 DELETE /api/v1/uploads/{uploadId}
+GET  /api/v1/uploads
 GET  /api/v1/uploads/{uploadId}
 GET  /api/v1/uploads/{uploadId}/chunks
 PUT  /api/v1/uploads/{uploadId}/chunks/{index}
@@ -77,6 +78,18 @@ docker compose --env-file .env -f deploy/docker-compose.yml up --build
 The API listens on `http://localhost:8080` by default.
 
 The web frontend listens on `http://localhost:3000` when Compose is running.
+
+The default Compose profile uses LocalProvider only. To run the one-account
+Proton adapter, first follow the encrypted session import instructions in
+[`apps/proton-adapter/README.md`](apps/proton-adapter/README.md), set
+`SHARDRIVE_PROTON_ADAPTER_ADDRESS=proton-adapter:50051` in `.env`, and start:
+
+```sh
+docker compose --env-file .env -f deploy/docker-compose.yml --profile proton up --build
+```
+
+The Proton profile is opt-in and never places credentials in PostgreSQL, the
+frontend, or the Go/gRPC request payload.
 
 Authentication cookies are `Secure` by default and therefore require HTTPS in
 a browser. For local HTTP-only Compose testing, set
@@ -140,11 +153,19 @@ Useful commands:
 ```sh
 make fmt
 make test
+make frontend-check
+make adapter-test
 make integration-test
 make phase0-gate
 make build
 make check
+make compose-config
 ```
+
+For the Proton Compose profile, configure the encrypted session and master-key
+file in `.env`, then run `make compose-proton-up`. The live browser gate is
+`make proton-e2e` and requires `E2E_EMAIL`, `E2E_PASSWORD`,
+`E2E_PROTON_ACCOUNT_NAME`, and `E2E_PROTON_ACCOUNT_REF`.
 
 Configuration is provided through environment variables documented in
 [`.env.example`](.env.example). Do not commit `.env` or real credentials.
@@ -153,13 +174,13 @@ Configuration is provided through environment variables documented in
 
 ```text
 apps/backend/       Go modular monolith
-apps/frontend/      SvelteKit application (Phase 1)
-apps/proton-adapter Proton Drive adapter (Phase 2, after the Phase 1 gate)
+apps/frontend/      SvelteKit application (Phase 1 product UI)
+apps/proton-adapter Proton Drive adapter (Phase 2 complete; Phase 3 next)
 deploy/             Local deployment files
-proto/              Provider adapter protocol definitions (Phase 2)
+proto/              Provider-neutral adapter protocol definitions
 ```
 
 See [`PROGRESS.md`](PROGRESS.md) for the exact implementation status and actual
-verification commands. The Phase 1 release-candidate gate now has an automated
-Firefox test; Proton integration starts after this LocalProvider gate remains
-green.
+verification commands. The LocalProvider Phase 0 gate, Phase 1 release-candidate
+gate, and one-account Proton Phase 2 gate are complete. Multi-account Proton is
+the next product slice, starting with two configured accounts.

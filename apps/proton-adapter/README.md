@@ -1,8 +1,14 @@
 # Proton adapter
 
-Phase 0 and the Phase 1 browser acceptance gates have passed. The current
-official Proton Drive SDK has now been evaluated, but this adapter remains a
-time-boxed one-account spike rather than a production integration.
+Phase 0 and the Phase 1 browser acceptance gates have passed. The Phase 2
+one-account Proton product gate is complete, including live transfer,
+restart/session recovery, Compose deployment, account lifecycle, and the
+Firefox browser gate. Phase 3 multi-account support has not started yet.
+
+This adapter is intentionally isolated and should not be treated as a
+production-certified Proton client: the official SDK and its cryptographic
+model are still evolving. The next product slice is two independently
+configured accounts while preserving this boundary.
 
 The official TypeScript SDK currently exposes Drive operations such as upload
 and download, while authentication and session management remain outside the
@@ -10,9 +16,9 @@ SDK. The SDK public interface and cryptographic model are still evolving, so
 all Proton-specific code must remain isolated here. Do not put Proton
 cryptography or SDK types in the Go core.
 
-Before implementation, record the exact SDK commit/package snapshot and the
-session handoff design. Production readiness requires an adapter restart,
-checksum, delete, quota, health, and provider-neutral error acceptance gate.
+The exact SDK commit/package snapshot and session handoff design are recorded
+below. The completed one-account acceptance gate covers adapter restart,
+checksum, delete, quota, health, and provider-neutral error translation.
 
 ## Phase 2A decision record
 
@@ -41,9 +47,10 @@ address provider. The intended Shardrive handoff is therefore:
 5. The Go core sees only provider-neutral upload, download, delete, stat,
    usage, and health results.
 
-No password-over-gRPC flow is permitted. The session recovery path must be
-proven with a real one-account test before this adapter is connected to the
-placement engine.
+No password-over-gRPC flow is permitted. The session recovery path was proven
+with the real one-account gate before any future placement expansion.
+Multi-account must add independent session selection and failure isolation
+without moving credentials into Go.
 
 `src/proton-client-factory.ts` now codifies this handoff: a session provider
 loads account-scoped SDK constructor parameters, the factory returns
@@ -58,12 +65,11 @@ opt-in `unsafe_file` store; it must not become the default production
 credential store. The default production path remains an OS secret store or
 the adapter-owned encrypted store.
 
-The local test machine has now completed the official CLI browser login. The
-CLI's OS-secret-store snapshot was imported into the adapter vault under an
-internal test account reference and recovered in a separate process. Only
-metadata was printed; the token values remain encrypted in `/tmp` and are not
-part of the repository. This proves session snapshot compatibility and vault
-recovery, not yet SDK client construction or a remote file transfer.
+The local test machine has completed the official CLI browser login. The CLI's
+OS-secret-store snapshot was imported into the adapter vault under an internal
+test account reference and recovered in a separate process. Only metadata was
+printed; token values remain encrypted outside the repository. The later live
+one-account gate proves SDK client construction and remote transfer as well.
 
 The factory intentionally uses a structural generic contract instead of
 importing the SDK's declaration graph into the adapter compiler. SDK 0.21.0's
@@ -98,11 +104,9 @@ same pinned source tree.
 
 The CLI remains unsuitable as Shardrive's provider implementation: its upload
 and download commands require local filesystem paths and do not expose the
-provider-neutral streaming object contract. The next live spike must therefore
-reuse the pinned official source/runtime pieces in a dedicated adapter entry
-point, not invoke the CLI as a file-transfer shim. Until that entry point is
-implemented and tested, this package must not claim Proton upload/download
-support.
+provider-neutral streaming object contract. The live adapter therefore reuses
+the pinned official source/runtime pieces in a dedicated entry point rather
+than invoking the CLI as a file-transfer shim.
 
 The reproducible read-only runtime probe is available as
 `npm run proton:runtime:probe`. Set `PROTON_SDK_SOURCE_DIR` to the checked-out
@@ -172,3 +176,34 @@ gRPC/protobuf packages external to the SDK bundle, loads sessions through
 contents or credentials. The current session payload is the validated CLI
 snapshot imported into the encrypted vault; an account without a session fails
 with an authentication error at the provider boundary.
+
+### Docker Compose
+
+The Compose adapter is opt-in. Create a base64 master-key file outside the
+repository and import the authenticated CLI session into the adapter's session
+volume before starting the Proton profile:
+
+```text
+mkdir -p ../secrets
+openssl rand -base64 32 > ../secrets/proton-master-key.b64
+export SHARDRIVE_PROTON_MASTER_KEY_B64="$(cat ../secrets/proton-master-key.b64)"
+export SHARDRIVE_PROTON_ACCOUNT_REF=account-1
+export SHARDRIVE_PROTON_SESSION_ROOT="$PWD/data/proton-sessions"
+npm run proton:session:import
+```
+
+Set these values in the root `.env`:
+
+```text
+SHARDRIVE_PROTON_ADAPTER_ADDRESS=proton-adapter:50051
+SHARDRIVE_PROTON_MASTER_KEY_FILE=../secrets/proton-master-key.b64
+```
+
+Then start the profile from the repository root:
+
+```text
+docker compose --env-file .env -f deploy/docker-compose.yml --profile proton up --build
+```
+
+The image clones and verifies the pinned official SDK commit during its build.
+The default Compose profile remains LocalProvider-only.

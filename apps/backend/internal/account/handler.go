@@ -147,7 +147,15 @@ func (h *Handler) refresh(ctx context.Context, userID, accountID string) (refres
 	}
 	observation, err := h.refresher.Refresh(ctx, current)
 	if err != nil {
-		return refreshResult{}, err
+		// A provider outage must not leave the last state looking healthy. The
+		// wiring layer normally converts provider errors into observations, but
+		// keep this boundary safe for unexpected adapter/refresher failures too.
+		code := "refresh_failed"
+		return h.persistRefresh(ctx, userID, current, RefreshParams{
+			State: StateOffline, TotalBytes: current.TotalBytes,
+			UsedBytes: current.UsedBytes, FreeBytes: current.FreeBytes,
+			ErrorCode: &code,
+		}, false, code)
 	}
 	if observation.TotalBytes < 0 || observation.UsedBytes < 0 || observation.FreeBytes < 0 || observation.UsedBytes > observation.TotalBytes || observation.FreeBytes > observation.TotalBytes {
 		code := "invalid_usage"

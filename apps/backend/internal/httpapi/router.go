@@ -20,6 +20,7 @@ func NewRouter(healthHandler *health.Handler, uploadHandler *upload.Handler, dow
 	mux.HandleFunc("GET /health", healthHandler.Ready)
 	if uploadHandler != nil {
 		mux.HandleFunc("POST /api/v1/uploads", uploadHandler.Create)
+		mux.HandleFunc("GET /api/v1/uploads", uploadHandler.ListActive)
 		mux.HandleFunc("GET /api/v1/uploads/{id}", uploadHandler.Get)
 		mux.HandleFunc("GET /api/v1/uploads/{id}/chunks", uploadHandler.Chunks)
 		mux.HandleFunc("PUT /api/v1/uploads/{id}/chunks/{index}", uploadHandler.UploadChunk)

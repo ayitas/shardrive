@@ -107,6 +107,39 @@ func (r *Repository) GetForUser(ctx context.Context, id, userID string) (Session
 	return value, nil
 }
 
+func (r *Repository) ListActiveForUser(ctx context.Context, userID string) ([]ResumeStatus, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT s.id, s.user_id, s.file_id, s.expected_size, s.received_bytes,
+			s.expected_chunks, s.completed_chunks, s.state, s.expires_at,
+			s.created_at, s.updated_at, f.name, f.mime_type, f.chunk_size
+		FROM upload_sessions s
+		JOIN files f ON f.id = s.file_id
+		WHERE s.user_id = $1 AND s.state = 'UPLOADING'
+			AND s.expires_at > now() AND f.deleted_at IS NULL
+		ORDER BY s.updated_at DESC, s.id DESC
+		LIMIT 100
+	`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list active uploads: %w", err)
+	}
+	defer rows.Close()
+	values := make([]ResumeStatus, 0)
+	for rows.Next() {
+		var value ResumeStatus
+		if err := rows.Scan(&value.ID, &value.UserID, &value.FileID, &value.ExpectedSize,
+			&value.ReceivedBytes, &value.ExpectedChunks, &value.CompletedChunks,
+			&value.State, &value.ExpiresAt, &value.CreatedAt, &value.UpdatedAt,
+			&value.Name, &value.MIMEType, &value.ChunkSize); err != nil {
+			return nil, fmt.Errorf("scan active upload: %w", err)
+		}
+		values = append(values, value)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate active uploads: %w", err)
+	}
+	return values, nil
+}
+
 func (r *Repository) Transition(ctx context.Context, id string, from, to State) (Session, error) {
 	if err := ValidateTransition(from, to); err != nil {
 		return Session{}, err

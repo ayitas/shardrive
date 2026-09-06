@@ -44,6 +44,20 @@ export interface UploadStatusResponse {
 	completedIndexes: number[];
 	expiresAt: string;
 }
+export interface ActiveUploadResponse {
+	uploadId: string;
+	fileId: string;
+	name: string;
+	mimeType: string;
+	sizeBytes: number;
+	chunkSize: number;
+	chunkCount: number;
+	state: string;
+	receivedBytes: number;
+	completedChunks: number;
+	completedIndexes: number[];
+	expiresAt: string;
+}
 
 export interface CompleteUploadResponse {
 	fileId: string;
@@ -102,6 +116,10 @@ export class ShardriveApi {
 
 	getUpload(uploadId: string): Promise<UploadStatusResponse> {
 		return this.request<UploadStatusResponse>(`/api/v1/uploads/${encodeURIComponent(uploadId)}`);
+	}
+
+	listActiveUploads(): Promise<{ uploads: ActiveUploadResponse[] }> {
+		return this.request('/api/v1/uploads');
 	}
 
 	getCompletedChunks(uploadId: string): Promise<Pick<UploadStatusResponse, 'uploadId' | 'completedIndexes'>> {

@@ -64,6 +64,16 @@ type Session struct {
 	UpdatedAt       time.Time
 }
 
+// ResumeStatus is the provider-neutral server view needed to resume an
+// incomplete browser upload after the original browser storage is gone.
+type ResumeStatus struct {
+	Session
+	Name             string
+	MIMEType         string
+	ChunkSize        int64
+	CompletedIndexes []int
+}
+
 type CreateParams struct {
 	UserID         string
 	FileID         string

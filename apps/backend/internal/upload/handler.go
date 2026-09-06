@@ -26,6 +26,9 @@ type uploadService interface {
 	UploadChunk(context.Context, string, string, int, io.Reader, int64) (ChunkResult, error)
 	Complete(context.Context, string, string) (CompletionResult, error)
 }
+type resumableUploadService interface {
+	ListActive(context.Context, string) ([]ResumeStatus, error)
+}
 type cancellableUpload interface {
 	Cancel(context.Context, string, string) error
 }
@@ -55,6 +58,30 @@ func NewHandler(service uploadService, userID string, jobs ...interface {
 		repository = jobs[0]
 	}
 	return &Handler{service: service, userID: userID, jobs: repository}
+}
+
+func (h *Handler) ListActive(w http.ResponseWriter, r *http.Request) {
+	service, ok := h.service.(resumableUploadService)
+	if !ok || !h.requireUser(w, r) {
+		return
+	}
+	values, err := service.ListActive(r.Context(), h.requestUserID(r))
+	if err != nil {
+		writeAPIError(w, http.StatusInternalServerError, "internal_error", "could not list active uploads")
+		return
+	}
+	response := make([]map[string]any, 0, len(values))
+	for _, value := range values {
+		response = append(response, map[string]any{
+			"uploadId": value.ID, "fileId": value.FileID, "name": value.Name,
+			"mimeType": value.MIMEType, "sizeBytes": value.ExpectedSize,
+			"chunkSize": value.ChunkSize, "chunkCount": value.ExpectedChunks,
+			"state": value.State, "receivedBytes": value.ReceivedBytes,
+			"completedChunks": value.CompletedChunks, "completedIndexes": value.CompletedIndexes,
+			"expiresAt": value.ExpiresAt,
+		})
+	}
+	writeAPIJSON(w, http.StatusOK, map[string]any{"uploads": response})
 }
 
 type createHTTPRequest struct {

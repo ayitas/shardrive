@@ -4,12 +4,26 @@ Last updated: 2026-09-06
 
 ## Current State
 
-**Phase:** Phase 2B — one-account Proton product integration
-**Status:** Phase 0 COMPLETE; Phase 1 product release-candidate browser gate passed;
-Phase 2A SDK investigation, provider-neutral gRPC boundary, live one-account
-transfer, restart/session recovery, encrypted session setup, and account
-lifecycle wiring are complete. Multi-account Proton placement remains out of
-scope until the one-account product E2E gate is complete.
+**Phase:** Phase 3 preparation — multi-account Proton
+**Status:** Phase 0 COMPLETE; Phase 1 product release-candidate browser gate
+passed; Phase 2 one-account Proton product gate COMPLETE. The SDK investigation,
+provider-neutral gRPC boundary, live transfer, restart/session recovery,
+encrypted session setup, Compose deployment, account lifecycle, and Firefox
+browser gate are complete. The default Compose profile remains LocalProvider-
+only; the Proton profile is opt-in. Multi-account is the next product slice,
+starting with two runtime-configured Proton accounts before expanding toward
+the 5–10 account target.
+
+The repository Makefile is now aligned with the current product workflow: it
+includes frontend and adapter checks/tests, Compose config validation, the
+opt-in Proton Compose profile, and the Firefox Proton browser gate. The new
+targets were validated with `make compose-config`, `make frontend-check`,
+`make adapter-check`, and `make adapter-test` (10 adapter tests passed).
+
+Compose adapter validation passed: `docker compose --profile proton build
+proton-adapter` built the image, and a network-isolated container smoke test
+bundled the SDK and reached `Shardrive Proton adapter listening` with a dummy
+key. The smoke test did not use a Proton account or claim a live transfer.
 
 Change review completed: frontend/auth/directory additions were audited, API
 routes were synchronized in README, and no code rollback was required.
@@ -117,10 +131,10 @@ without issuing a cookie.
 Codebase hygiene audit completed on 2026-09-06. Go tests/vet and Svelte
 type-checking remain clean, and the frontend dependency graph was reviewed for
 unused packages. The unused `@sveltejs/adapter-auto` dependency was removed;
-the active production adapter is `@sveltejs/adapter-node`. The Proton protocol
-boundary and ignored local build/configuration artifacts remain intentionally
-because they are part of the planned Phase 2 boundary or local development
-state, not dead tracked code.
+the active production adapter is `@sveltejs/adapter-node`. A tracked-file
+review found no additional safe dead code: the Proton protocol boundary,
+runtime probes, and adapter tests are all referenced by the current build,
+validation, or recovery workflow and remain intentionally present.
 
 Phase 2A now has an adapter-local encrypted session vault foundation in
 `apps/proton-adapter`. It uses AES-256-GCM, authenticated account IDs, atomic
@@ -493,10 +507,10 @@ and Chromium. Final two-browser result after installing Chromium:
 
 # Phase 2 — Proton Adapter, One Account
 
-Status: SPIKE ONLY — LocalProvider and the Phase 1 release-candidate browser
-gate passed. Official SDK investigation completed; production integration is
-conditional on a successful one-account adapter spike and session recovery
-proof.
+Status: COMPLETE for the one-account product gate. LocalProvider and the Phase
+1 release-candidate browser gate passed; the official SDK integration,
+encrypted session recovery, Compose deployment, live API gate, and Firefox
+browser gate are complete. Multi-account Proton remains Phase 3.
 
 Before coding:
 - [x] inspect current official Proton Drive SDK
@@ -544,11 +558,14 @@ Findings:
 - The SDK handles Proton encryption and metadata processing; Shardrive must not
   reimplement Proton cryptography in Go.
 
-Decision:
+Decision at the start of Phase 2:
 
 ```text
-PROCEED with a time-boxed one-account technical spike.
-DO NOT claim Proton production readiness or start multi-account integration.
+PROCEED with a time-boxed one-account technical spike; do not claim Proton
+production readiness or start multi-account integration until that gate passes.
+
+This decision is now historical: the one-account gate has passed, while the
+production-readiness warning remains because the official SDK is evolving.
 ```
 
 Phase 2B boundary design is now recorded in `proto/storage.proto` and keeps
@@ -614,13 +631,13 @@ provider operations, checksum, restart recovery, and cleanup against Proton.
 
 Spike exit criteria:
 
-- [ ] confirm the immutable upstream commit/package relationship
-- [ ] document the supported auth/session handoff into the SDK
-- [ ] define encrypted credential/session persistence through `credential_ref`
-- [ ] prove streaming upload and download through the adapter
-- [ ] restart adapter and recover the session without re-authentication
-- [ ] prove delete, stat, usage, health, and provider-neutral errors
-- [ ] pass one-account checksum and remote cleanup tests
+- [x] confirm the immutable upstream commit/package relationship
+- [x] document the supported auth/session handoff into the SDK
+- [x] define encrypted credential/session persistence through `credential_ref`
+- [x] prove streaming upload and download through the adapter
+- [x] restart adapter and recover the session without re-authentication
+- [x] prove delete, stat, usage, health, and provider-neutral errors
+- [x] pass one-account checksum and remote cleanup tests
 
 Primary risk: the SDK is evolving toward a cryptographic migration while
 third-party production support and standalone integration documentation are not
@@ -633,24 +650,28 @@ Implementation:
 - [x] provider-neutral streaming Download boundary
 - [x] provider-neutral Delete/Stat/Usage/Health boundary
 - [x] TypeScript adapter runtime scaffold
-- [ ] Proton session manager
+- [x] Proton session manager
 - [x] encrypted session/credentials vault foundation
 - [x] provider-neutral error translation
-- [ ] Go ProtonProvider
+- [x] Go ProtonProvider
 
 Acceptance:
-- [ ] repeated upload/download checksum tests
-- [ ] adapter restart/session recovery
-- [ ] delete
-- [ ] quota/usage
+- [x] repeated upload/download checksum tests
+- [x] adapter restart/session recovery
+- [x] delete
+- [x] quota/usage
 
 # Phase 3 — Multi-Account Proton
 
-Status: FUTURE — only after the one-account Proton spike passes.
+Status: NEXT — preparation after the completed one-account Proton product gate.
+Start with two independently configured Proton sessions and preserve the
+provider-neutral core. The 5–10 account target is a scale/configuration goal,
+not a reason to skip the two-account correctness slice.
 
-- [ ] runtime account management
-- [ ] 5 accounts
-- [ ] test up to 10
+- [ ] runtime account management for at least two Proton accounts
+- [ ] two-account connect/list/refresh UI and API coverage
+- [ ] placement across two Proton accounts
+- [ ] test configuration growth toward 5–10 accounts
 - [ ] health
 - [ ] quota refresh
 - [ ] per-account semaphores
@@ -1044,11 +1065,13 @@ same command completed successfully.
 7. Use opaque remote object IDs.
 8. Remote upload success + DB failure creates an orphan and must be recoverable.
 
-## Next 3 Tasks
+## Historical sequencing note
 
-1. Add frontend component/route tests for account status rendering and degraded states.
-2. Add a provider-neutral account health/quota worker path for scheduled refresh.
-3. Revisit the Proton adapter only after selecting a reproducible official-runtime dependency strategy.
+Earlier planning listed frontend account-state tests, scheduled account health,
+and a reproducible Proton runtime as future work. Those items were completed or
+superseded by the Phase 2 gates recorded below. The current next work is defined
+in the Phase 3 section and the final “Next product slice” note near the end of
+this file.
 
 Current sequencing note: retry status is implemented; auth rate limiting now
 uses durable PostgreSQL state so security state never exists only in one API
@@ -1337,11 +1360,52 @@ full `go test ./...`, `go vet ./...`, and `git diff --check`.
 The lifecycle UI passed `npm run check`, `npm run build`, and the Chromium plus
 Firefox Phase 1 browser gate (`2 passed`).
 
-Next three tasks are: add a browser/API E2E gate for connecting one Proton
-account and refreshing its live status, harden adapter/account operational
-failure recovery, and only then expand to multi-account Proton placement. The
-cross-language, restart/session-recovery, session setup, and account lifecycle
-gates are complete.
+The optional Playwright gate `apps/frontend/e2e/proton-account.spec.ts` now
+covers connecting one configured Proton account from the dashboard and
+refreshing its live status. It requires the existing local login variables plus
+`E2E_PROTON_ACCOUNT_NAME` and `E2E_PROTON_ACCOUNT_REF`; it is skipped when the
+live gate variables are absent and does not print or persist provider secrets.
+`npm run check` and `npx playwright test --list` passed after adding the gate.
+The browser execution was not claimed here because the current sandbox's
+Chromium failed to create its OS sandbox (`Operation not permitted`) before the
+test could run.
+
+Adapter/account recovery hardening is now covered at the account boundary: an
+unexpected refresher failure is persisted as `OFFLINE` with
+`refresh_failed`, preserving the last known quota rather than leaving an
+account apparently `ACTIVE`. The targeted account/API tests, full Go test
+suite, `go vet ./...`, and `git diff --check` passed.
+
+The live Compose API gate also passed using the existing encrypted `account-1`
+session: login, Proton account connect, health/quota refresh, and the provider
+neutral response all succeeded. The account reported `ACTIVE` with 2 GiB total
+and 0 bytes used; no remote file was uploaded or deleted. The Firefox browser
+gate then passed against the same running stack (`1 passed`) when executed with
+host access to the Docker-published frontend port. The browser gate performs
+login, account lookup/connect, and refresh only; no remote file was uploaded or
+deleted.
+
+Next three tasks are: define the smallest multi-account Proton product slice,
+implement runtime account list/connect/refresh coverage for two accounts, and
+then prove placement fallback while keeping the one-account path unchanged.
+The Compose API and Firefox browser gates, cross-language transfer,
+restart/session-recovery, session setup, account lifecycle, and account
+failure-state hardening gates are complete.
+
+Firefox inspection of the running dashboard initially exposed a Compose wiring
+issue: the API container had an empty `SHARDRIVE_PROTON_ADAPTER_ADDRESS`, so
+the Proton card showed `OFFLINE/provider_unavailable` while the adapter itself
+was healthy. Recreating the API with `proton-adapter:50051` fixed the wiring;
+Firefox then showed `Compose Proton test`, `proton`, `ACTIVE`, and `0 B / 2.0
+GiB`. This confirms the UI status is backed by the live adapter path, not just
+the stored account row.
+
+The same inspection found and fixed a resume UX gap: active upload sessions
+are now listed by `GET /api/v1/uploads`, merged into the frontend resume list,
+and exposed with server-backed `Resume` and `Cancel upload` actions. This was
+verified in Firefox against two existing `proton-drive` sessions at 3/4
+chunks; no upload data was deleted while diagnosing the issue. Backend tests,
+`go vet ./...`, frontend check/build, and the Docker frontend rebuild passed.
 
 The supported local session setup is now executable as
 `npm run proton:session:import`. It reads the official CLI OS keychain entry,

@@ -1,8 +1,9 @@
 # Protocol definitions
 
-`storage.proto` defines the provider-neutral gRPC boundary for the Phase 2
-adapter. It is intentionally independent of Proton names, SDK types, and
-credential formats.
+`storage.proto` defines the provider-neutral gRPC boundary used by the Phase 2
+one-account Proton adapter and extended by the Phase 3 multi-account work. It
+is intentionally independent of Proton names, SDK types, and credential
+formats.
 
 Boundary decisions:
 

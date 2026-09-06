@@ -85,6 +85,29 @@ services:
       - local-storage:/data/storage
     restart: unless-stopped
 
+  proton-adapter:
+    profiles: ["proton"]
+    build:
+      context: ..
+      dockerfile: apps/proton-adapter/Dockerfile
+      args:
+        PROTON_SDK_COMMIT: ${PROTON_SDK_COMMIT:-c8d03244938a6b4d107c755df8904d7d971ed1c2}
+    environment:
+      PROTON_SDK_SOURCE_DIR: /opt/proton-sdk
+      PROTON_SDK_EXPECTED_COMMIT: ${PROTON_SDK_COMMIT:-c8d03244938a6b4d107c755df8904d7d971ed1c2}
+      SHARDRIVE_PROTON_GRPC_ADDRESS: 0.0.0.0:50051
+      SHARDRIVE_PROTON_SESSION_ROOT: /var/lib/shardrive/proton-sessions
+      SHARDRIVE_PROTON_MASTER_KEY_FILE: /run/secrets/shardrive_proton_master_key
+    secrets:
+      - shardrive_proton_master_key
+    volumes:
+      - ${SHARDRIVE_PROTON_SESSION_ROOT:-../data/proton-sessions}:/var/lib/shardrive/proton-sessions
+    restart: unless-stopped
+
 volumes:
   postgres-data:
   local-storage:
+
+secrets:
+  shardrive_proton_master_key:
+    file: ${SHARDRIVE_PROTON_MASTER_KEY_FILE:-../secrets/proton-master-key.b64}
