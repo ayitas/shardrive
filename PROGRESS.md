@@ -113,6 +113,14 @@ cookie → `/me` → logout → unauthorized flow with a real Argon2id password.
 It also asserts wrong credentials return generic `401 invalid_credentials`
 without issuing a cookie.
 
+Codebase hygiene audit completed on 2026-09-06. Go tests/vet and Svelte
+type-checking remain clean, and the frontend dependency graph was reviewed for
+unused packages. The unused `@sveltejs/adapter-auto` dependency was removed;
+the active production adapter is `@sveltejs/adapter-node`. The Proton protocol
+boundary and ignored local build/configuration artifacts remain intentionally
+because they are part of the planned Phase 2 boundary or local development
+state, not dead tracked code.
+
 Read `AGENTS.md` before doing any work.
 
 ## Locked Decisions
