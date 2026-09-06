@@ -45,6 +45,7 @@ GET  /api/v1/files
 PATCH /api/v1/files/{fileId}
 DELETE /api/v1/files/{fileId}
 GET  /api/v1/accounts
+POST /api/v1/accounts/{accountId}/refresh
 GET  /api/v1/directories?parentId={directoryId}
 POST /api/v1/directories
 PATCH /api/v1/directories/{directoryId}

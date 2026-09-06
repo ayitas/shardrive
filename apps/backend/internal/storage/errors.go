@@ -9,5 +9,7 @@ var (
 	ErrObjectExists     = errors.New("storage object already exists")
 	ErrQuotaExceeded    = errors.New("storage quota exceeded")
 	ErrUnavailable      = errors.New("storage provider unavailable")
+	ErrAuthentication   = errors.New("storage provider authentication failed")
+	ErrRateLimited      = errors.New("storage provider rate limited")
 	ErrInvalidRequest   = errors.New("invalid storage request")
 )

@@ -1123,6 +1123,13 @@ state, per-account usage, and a clear warning when the account is not `ACTIVE`.
 This keeps the product's operational state visible without exposing credential
 references or coupling the frontend to Proton-specific details.
 
+Storage account refresh is now provider-neutral and durable. `POST
+/api/v1/accounts/{accountId}/refresh` verifies ownership, calls the registered
+provider health/quota methods, maps provider failures to stable account states,
+and persists the observation in PostgreSQL. The dashboard exposes a per-account
+Refresh action; provider-specific errors are reduced to safe error codes and
+never persisted as raw provider messages.
+
 Storage API handlers now resolve the authenticated user ID from the validated
 PostgreSQL session context (with the configured ID retained only for isolated
 Phase 0/test routers). Production routing requires a valid session for upload,
@@ -1170,6 +1177,20 @@ nvm use --lts >/dev/null && npm run check && npm run build
 
 Both frontend commands completed successfully; `svelte-check` reported zero
 errors and zero warnings, and the production adapter-node build completed.
+
+Account refresh verification in this session:
+
+```text
+gofmt -w internal/account/account.go internal/account/account_test.go internal/account/handler.go internal/account/repository.go internal/httpapi/router.go internal/storage/errors.go cmd/api/account_refresh.go cmd/api/main.go
+GOCACHE=/tmp/shardrive-go-build GOMODCACHE=/tmp/shardrive-go-mod go test ./internal/account ./internal/httpapi ./internal/storage ./cmd/api
+GOCACHE=/tmp/shardrive-go-build GOMODCACHE=/tmp/shardrive-go-mod go test ./...
+GOCACHE=/tmp/shardrive-go-build GOMODCACHE=/tmp/shardrive-go-mod go vet ./...
+git diff --check
+```
+
+All completed successfully. No live Proton transfer was added; the official
+CLI's unpublished account runtime remains an explicit Phase 2 integration
+blocker rather than being replaced with a non-streaming CLI shim.
 
 All commands completed successfully; no blockers remain for this milestone.
 

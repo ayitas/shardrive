@@ -54,6 +54,7 @@ func NewRouter(healthHandler *health.Handler, uploadHandler *upload.Handler, dow
 		case *account.Handler:
 			if handler != nil {
 				mux.HandleFunc("GET /api/v1/accounts", handler.List)
+				mux.HandleFunc("POST /api/v1/accounts/{id}/refresh", handler.Refresh)
 			}
 		}
 	}

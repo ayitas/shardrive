@@ -2,6 +2,15 @@ package account
 
 import "time"
 
+type RefreshObservation struct {
+	State      State
+	TotalBytes int64
+	UsedBytes  int64
+	FreeBytes  int64
+	Healthy    bool
+	ErrorCode  string
+}
+
 type State string
 
 const (

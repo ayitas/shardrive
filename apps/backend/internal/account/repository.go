@@ -13,6 +13,14 @@ import (
 
 type Repository struct{ pool *pgxpool.Pool }
 
+type RefreshParams struct {
+	State      State
+	TotalBytes int64
+	UsedBytes  int64
+	FreeBytes  int64
+	ErrorCode  *string
+}
+
 func NewRepository(pool *pgxpool.Pool) *Repository { return &Repository{pool: pool} }
 
 func (r *Repository) Create(ctx context.Context, p CreateParams) (Account, error) {
@@ -42,6 +50,26 @@ func (r *Repository) Get(ctx context.Context, id string) (Account, error) {
 	`, id), &value)
 	if err != nil {
 		return Account{}, mapError("get", err)
+	}
+	return value, nil
+}
+
+// Refresh persists provider health/quota observations for an account owned by
+// userID. The ownership predicate is part of the update so callers cannot
+// refresh another user's account by guessing its UUID.
+func (r *Repository) Refresh(ctx context.Context, userID, id string, p RefreshParams) (Account, error) {
+	var value Account
+	err := scanAccount(r.pool.QueryRow(ctx, `
+		UPDATE storage_accounts
+		SET status = $3, total_bytes = $4, used_bytes = $5, free_bytes = $6,
+			last_health_check = now(), last_error = $7, updated_at = now()
+		WHERE user_id = $1 AND id = $2
+		RETURNING id, user_id, name, provider, status, total_bytes, used_bytes, free_bytes,
+			priority, max_upload_workers, max_download_workers, credential_ref,
+			rate_limited_until, last_health_check, last_error, created_at, updated_at
+	`, userID, id, p.State, p.TotalBytes, p.UsedBytes, p.FreeBytes, p.ErrorCode), &value)
+	if err != nil {
+		return Account{}, mapError("refresh", err)
 	}
 	return value, nil
 }

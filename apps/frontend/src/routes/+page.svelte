@@ -26,6 +26,7 @@
 	let storageTotal = 0;
 	let accounts: AccountSummary[] = [];
 	let selectedPendingUploadId = '';
+	let refreshingAccountId = '';
 	let newFolderName = '';
 	let creatingFolder = false;
 	type SortOption = 'name-asc' | 'name-desc' | 'size-desc' | 'updated-desc';
@@ -106,6 +107,22 @@
 			error = cause instanceof Error ? cause.message : 'Could not create folder';
 		} finally {
 			creatingFolder = false;
+		}
+	}
+
+	async function refreshAccount(accountId: string): Promise<void> {
+		if (refreshingAccountId) return;
+		refreshingAccountId = accountId;
+		error = '';
+		try {
+			const response = await api.refreshAccount(accountId);
+			accounts = accounts.map((account) => account.id === response.account.id ? response.account : account);
+			storageUsed = accounts.reduce((sum, account) => sum + account.usedBytes, 0);
+			storageTotal = accounts.reduce((sum, account) => sum + account.totalBytes, 0);
+		} catch (cause) {
+			error = cause instanceof Error ? cause.message : 'Could not refresh storage account';
+		} finally {
+			refreshingAccountId = '';
 		}
 	}
 
@@ -286,7 +303,7 @@
 					{#each accounts as account (account.id)}
 						<li>
 							<div class="account-name"><strong>{account.name}</strong><span class="muted">{account.provider}</span></div>
-							<div class="account-summary"><span class={`status-pill status-${account.state.toLowerCase()}`}>{account.state}</span><span class="muted">{formatBytes(account.usedBytes)} / {formatBytes(account.totalBytes)}</span></div>
+							<div class="account-summary"><span class={`status-pill status-${account.state.toLowerCase()}`}>{account.state}</span><span class="muted">{formatBytes(account.usedBytes)} / {formatBytes(account.totalBytes)}</span><button type="button" on:click={() => void refreshAccount(account.id)} disabled={refreshingAccountId !== ''}>{refreshingAccountId === account.id ? 'Refreshing…' : 'Refresh'}</button></div>
 							<div class="meter" role="progressbar" aria-label={`${account.name} storage used`} aria-valuenow={account.usedBytes} aria-valuemin="0" aria-valuemax={account.totalBytes}><span style={`width: ${storagePercent(account.usedBytes, account.totalBytes)}%`}></span></div>
 							{#if account.state !== 'ACTIVE'}<p class="account-warning">This account is not receiving new chunks until it is healthy.</p>{/if}
 						</li>

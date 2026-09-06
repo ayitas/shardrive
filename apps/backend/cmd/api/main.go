@@ -138,7 +138,7 @@ func run(logger *slog.Logger) error {
 
 	server := &http.Server{
 		Addr:              cfg.HTTPAddress,
-		Handler:           httpapi.NewRouter(health.NewHandler(pool, cfg.HealthTimeout), uploadHandler, downloadHandler, fileHandler, directoryHandler, authHandler, account.NewHandler(account.NewRepository(pool), cfg.LocalAccountUserID)),
+		Handler:           httpapi.NewRouter(health.NewHandler(pool, cfg.HealthTimeout), uploadHandler, downloadHandler, fileHandler, directoryHandler, authHandler, account.NewHandler(account.NewRepository(pool), cfg.LocalAccountUserID, providerAccountRefresher{providers: providers})),
 		ReadHeaderTimeout: cfg.HealthTimeout,
 	}
 
