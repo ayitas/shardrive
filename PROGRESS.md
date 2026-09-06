@@ -1030,9 +1030,9 @@ same command completed successfully.
 
 ## Next 3 Tasks
 
-1. Add upload speed/ETA smoothing and frontend queue tests.
-2. Begin Phase 2 prerequisite: inspect and document current official Proton Drive SDK.
-3. Add runtime account management UI and provider-neutral account status actions.
+1. Add provider-neutral account health/quota refresh actions and durable status updates.
+2. Add frontend component/route tests for account status rendering and degraded states.
+3. Revisit the Proton adapter only after selecting a reproducible official-runtime dependency strategy.
 
 Current sequencing note: retry status is implemented; auth rate limiting now
 uses durable PostgreSQL state so security state never exists only in one API
@@ -1118,6 +1118,11 @@ The storage dashboard slice is now wired end-to-end: `GET /api/v1/accounts`
 returns user-scoped account quota/status summaries, and the frontend displays
 aggregate used versus total bytes without exposing credentials.
 
+The storage dashboard now also renders each configured account with provider,
+state, per-account usage, and a clear warning when the account is not `ACTIVE`.
+This keeps the product's operational state visible without exposing credential
+references or coupling the frontend to Proton-specific details.
+
 Storage API handlers now resolve the authenticated user ID from the validated
 PostgreSQL session context (with the configured ID retained only for isolated
 Phase 0/test routers). Production routing requires a valid session for upload,
@@ -1156,6 +1161,15 @@ GOCACHE=/tmp/shardrive-go-build GOMODCACHE=/tmp/shardrive-go-mod go test ./...
 GOCACHE=/tmp/shardrive-go-build GOMODCACHE=/tmp/shardrive-go-mod go vet ./...
 git diff --check
 ```
+
+Frontend account dashboard verification in this session:
+
+```text
+nvm use --lts >/dev/null && npm run check && npm run build
+```
+
+Both frontend commands completed successfully; `svelte-check` reported zero
+errors and zero warnings, and the production adapter-node build completed.
 
 All commands completed successfully; no blockers remain for this milestone.
 

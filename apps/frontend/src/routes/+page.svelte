@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { env } from '$env/dynamic/public';
-	import { ShardriveApi, type DirectorySummary, type FileSummary } from '$lib/api/client';
+	import { ShardriveApi, type AccountSummary, type DirectorySummary, type FileSummary } from '$lib/api/client';
 	import { UploadQueue, type UploadSnapshot } from '$lib/upload/queue';
 	import { deleteUploadSession, listUploadSessions, saveUploadSession, type PersistedUploadSession } from '$lib/upload/session-store';
 
@@ -24,6 +24,7 @@
 	let pendingSessions: PersistedUploadSession[] = [];
 	let storageUsed = 0;
 	let storageTotal = 0;
+	let accounts: AccountSummary[] = [];
 	let selectedPendingUploadId = '';
 	let newFolderName = '';
 	let creatingFolder = false;
@@ -71,8 +72,9 @@
 			]);
 			files = fileResponse.files;
 			directories = directoryResponse.directories;
-			storageUsed = accountResponse.accounts.reduce((sum, account) => sum + account.usedBytes, 0);
-			storageTotal = accountResponse.accounts.reduce((sum, account) => sum + account.totalBytes, 0);
+			accounts = accountResponse.accounts;
+			storageUsed = accounts.reduce((sum, account) => sum + account.usedBytes, 0);
+			storageTotal = accounts.reduce((sum, account) => sum + account.totalBytes, 0);
 			currentDirectory = parentId;
 		} catch (cause) {
 			error = cause instanceof Error ? cause.message : 'Could not load files';
@@ -275,6 +277,23 @@
 			<div class="meter" role="progressbar" aria-label="Storage used" aria-valuenow={storageUsed} aria-valuemin="0" aria-valuemax={storageTotal}><span style={`width: ${storagePercent(storageUsed, storageTotal)}%`}></span></div>
 			<p class="muted">{storageTotal > 0 ? `${formatBytes(Math.max(0, storageTotal - storageUsed))} available` : 'Storage is not configured'}</p>
 		</div>
+		<section class="accounts-card" aria-label="Storage accounts">
+			<div class="section-heading"><h2>Storage accounts</h2><span class="muted">{accounts.length} connected</span></div>
+			{#if accounts.length === 0}
+				<p class="muted">No storage accounts are configured.</p>
+			{:else}
+				<ul class="account-list">
+					{#each accounts as account (account.id)}
+						<li>
+							<div class="account-name"><strong>{account.name}</strong><span class="muted">{account.provider}</span></div>
+							<div class="account-summary"><span class={`status-pill status-${account.state.toLowerCase()}`}>{account.state}</span><span class="muted">{formatBytes(account.usedBytes)} / {formatBytes(account.totalBytes)}</span></div>
+							<div class="meter" role="progressbar" aria-label={`${account.name} storage used`} aria-valuenow={account.usedBytes} aria-valuemin="0" aria-valuemax={account.totalBytes}><span style={`width: ${storagePercent(account.usedBytes, account.totalBytes)}%`}></span></div>
+							{#if account.state !== 'ACTIVE'}<p class="account-warning">This account is not receiving new chunks until it is healthy.</p>{/if}
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		</section>
 		{#if loading}
 			<p class="muted">Loading…</p>
 		{:else if error}
@@ -334,7 +353,18 @@
 	.pending-card li { align-items: center; }
 	.pending-card li > div:first-child { display: grid; gap: .2rem; min-width: 0; }
 	.storage-card { margin: 1rem 0 2rem; padding: 1rem; border: 1px solid #2f3a50; border-radius: .75rem; background: #151b27; }
+	.accounts-card { margin: 1rem 0 2rem; padding: 1rem; border: 1px solid #2f3a50; border-radius: .75rem; background: #151b27; }
 	.storage-heading strong { font-size: .9rem; }
+	.account-list { margin: .5rem 0 0; }
+	.account-list li { display: block; }
+	.account-name, .account-summary { display: flex; justify-content: space-between; gap: 1rem; align-items: center; }
+	.account-name { justify-content: flex-start; }
+	.account-name .muted { font-size: .85rem; }
+	.account-summary { margin-top: .35rem; font-size: .85rem; }
+	.account-warning { margin: .5rem 0 0; color: #f4c27a; font-size: .85rem; }
+	.status-active { background: #164e3b; color: #a7f3d0; }
+	.status-full, .status-rate_limited { background: #713f12; color: #fde68a; }
+	.status-offline, .status-auth_failed, .status-auth_required, .status-disabled { background: #5b1d2a; color: #fecdd3; }
 	.meter { height: .5rem; margin: .8rem 0 .5rem; overflow: hidden; border-radius: 999px; background: #293349; }
 	.meter span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #6ee7b7, #60a5fa); transition: width .2s ease; }
 	.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
