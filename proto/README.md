@@ -18,5 +18,8 @@ Boundary decisions:
 - Credentials, access tokens, Proton node IDs, and SDK-specific objects never
   appear in this protocol.
 
-Generated Go/TypeScript bindings are intentionally deferred until the
-one-account SDK spike confirms the exact adapter runtime and build toolchain.
+The TypeScript adapter loads this contract dynamically with `@grpc/proto-loader`.
+The Go core uses a small transport-local protobuf client that mirrors only these
+provider-neutral messages; Proton SDK types and credentials never cross the
+boundary. Generated bindings can replace that client later without changing the
+`storage.Provider` interface.

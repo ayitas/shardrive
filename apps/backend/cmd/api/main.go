@@ -25,6 +25,7 @@ import (
 	"github.com/ayitas/shardrive/apps/backend/internal/job"
 	"github.com/ayitas/shardrive/apps/backend/internal/placement"
 	"github.com/ayitas/shardrive/apps/backend/internal/storage"
+	grpcstorage "github.com/ayitas/shardrive/apps/backend/internal/storage/grpcprovider"
 	localstorage "github.com/ayitas/shardrive/apps/backend/internal/storage/local"
 	"github.com/ayitas/shardrive/apps/backend/internal/upload"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -110,6 +111,7 @@ func run(logger *slog.Logger) error {
 	}
 	cancelConnect()
 	defer pool.Close()
+	defer providers.Close()
 	logger.Info("storage providers configured", "providers", providers.Names())
 	uploadService, err := upload.NewService(
 		upload.NewRepository(pool), chunk.NewRepository(pool), account.NewRepository(pool),
@@ -177,6 +179,16 @@ func configureStorage(ctx context.Context, cfg config.Config, pool *pgxpool.Pool
 	providers := storage.NewRegistry()
 	if err := providers.Register("local", localProvider); err != nil {
 		return nil, fmt.Errorf("register local provider: %w", err)
+	}
+	if cfg.ProtonAdapterAddress != "" {
+		protonProvider, err := grpcstorage.New(cfg.ProtonAdapterAddress)
+		if err != nil {
+			return nil, fmt.Errorf("configure proton adapter: %w", err)
+		}
+		if err := providers.Register("proton", protonProvider); err != nil {
+			_ = protonProvider.Close()
+			return nil, fmt.Errorf("register proton provider: %w", err)
+		}
 	}
 	if cfg.LocalAccountUserID == "" {
 		return providers, nil

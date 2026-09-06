@@ -1258,6 +1258,29 @@ Post-fix verification passed with `npm run check`, `npm run build`, `npm test`
 (10 tests), `npm run sdk:smoke`, and the read-only
 `PROTON_SDK_SOURCE_DIR=/tmp/shardrive-proton-sdk-source npm run proton:runtime:probe`.
 The probe output contained only the bundle summary and live quota observation.
+
+The Go core now has a provider-neutral `grpcprovider.Provider` implementing the
+existing `storage.Provider` interface. It uses bounded client-streaming upload,
+server-streaming download, unary delete/stat/usage/health calls, and maps gRPC
+status codes to existing storage errors. The API registers it as `proton` only
+when `SHARDRIVE_PROTON_ADAPTER_ADDRESS` is configured; the default remains
+LocalProvider-only. A wire-level protobuf streaming test passes, and provider
+connections are closed during API shutdown.
+
+Exact verification for this increment:
+
+```text
+go mod tidy
+gofmt -w cmd/api/main.go internal/config/config.go internal/storage/grpcprovider/*.go
+GOCACHE=/tmp/shardrive-go-build GOMODCACHE=/tmp/shardrive-go-mod go test ./internal/storage/grpcprovider -run TestProviderStreamsAgainstProtoService -count=1 -v
+GOCACHE=/tmp/shardrive-go-build GOMODCACHE=/tmp/shardrive-go-mod go test ./...
+GOCACHE=/tmp/shardrive-go-build GOMODCACHE=/tmp/shardrive-go-mod go vet ./...
+```
+
+Next three tasks are: add a real adapter process entrypoint around the pinned
+runtime/session factory, prove Go-to-TypeScript gRPC upload/download with one
+configured Proton account, and only then expose Proton account provisioning in
+the account dashboard.
 ```
 
 All commands completed successfully; no blockers remain for this milestone.

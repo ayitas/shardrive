@@ -56,6 +56,25 @@ func (r *Registry) Names() []string {
 	return names
 }
 
+// Close releases provider resources that expose Close. Providers that do not
+// own a connection (such as LocalProvider) are ignored.
+func (r *Registry) Close() error {
+	r.mu.RLock()
+	providers := make([]Provider, 0, len(r.providers))
+	for _, provider := range r.providers {
+		providers = append(providers, provider)
+	}
+	r.mu.RUnlock()
+
+	var closeErr error
+	for _, provider := range providers {
+		if closer, ok := provider.(interface{ Close() error }); ok {
+			closeErr = errors.Join(closeErr, closer.Close())
+		}
+	}
+	return closeErr
+}
+
 func IsRetryable(err error) bool {
 	return errors.Is(err, ErrUnavailable)
 }
