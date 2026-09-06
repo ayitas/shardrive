@@ -144,33 +144,31 @@ export class UploadQueue {
 
 	private async uploadOne(index: number): Promise<void> {
 		let lastError: unknown;
-		for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
-			if (this.cancelled) return;
-			try {
-			const start = index * this.chunkSize;
-			const end = Math.min(this.file.size, start + this.chunkSize);
-			await this.api.uploadChunk(this.snapshot.uploadId!, index, this.file.slice(start, end));
-			this.completed.add(index);
-			const receivedBytes = this.snapshot.receivedBytes + (end - start);
-			const elapsedSeconds = Math.max((Date.now() - this.startedAt) / 1000, 0.001);
-			const speedBytesPerSecond = receivedBytes / elapsedSeconds;
-			this.snapshot = { ...this.snapshot, retrying: false, retryAttempt: 0, completedChunks: this.completed.size, completedIndexes: [...this.completed].sort((a, b) => a - b), receivedBytes, speedBytesPerSecond, etaSeconds: speedBytesPerSecond > 0 ? Math.ceil((this.snapshot.totalBytes - receivedBytes) / speedBytesPerSecond) : undefined };
-			this.emit();
-			return;
-			} catch (error) {
-				lastError = error;
-			if (attempt < this.maxRetries) {
-				this.snapshot = { ...this.snapshot, retrying: true, retryAttempt: attempt + 1 };
-				this.emit();
-				const jitteredDelay = this.baseRetryDelayMs * 2 ** attempt * (0.75 + Math.random() * 0.5);
-					await new Promise((resolve) => setTimeout(resolve, jitteredDelay));
+		try {
+			for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+				if (this.cancelled) return;
+				try {
+					const start = index * this.chunkSize;
+					const end = Math.min(this.file.size, start + this.chunkSize);
+					await this.api.uploadChunk(this.snapshot.uploadId!, index, this.file.slice(start, end));
+					this.completed.add(index);
+					const receivedBytes = this.snapshot.receivedBytes + (end - start);
+					const elapsedSeconds = Math.max((Date.now() - this.startedAt) / 1000, 0.001);
+					const speedBytesPerSecond = receivedBytes / elapsedSeconds;
+					this.snapshot = { ...this.snapshot, retrying: false, retryAttempt: 0, completedChunks: this.completed.size, completedIndexes: [...this.completed].sort((a, b) => a - b), receivedBytes, speedBytesPerSecond, etaSeconds: speedBytesPerSecond > 0 ? Math.ceil((this.snapshot.totalBytes - receivedBytes) / speedBytesPerSecond) : undefined };
+					this.emit();
+					return;
+				} catch (error) {
+					lastError = error;
+					if (attempt < this.maxRetries) {
+						this.snapshot = { ...this.snapshot, retrying: true, retryAttempt: attempt + 1 };
+						this.emit();
+						const jitteredDelay = this.baseRetryDelayMs * 2 ** attempt * (0.75 + Math.random() * 0.5);
+						await new Promise((resolve) => setTimeout(resolve, jitteredDelay));
+					}
 				}
 			}
-		}
-		try {
-			throw lastError;
-		} catch (error) {
-			this.reject?.(error);
+			this.reject?.(lastError);
 		} finally {
 			this.running--;
 			this.schedule();

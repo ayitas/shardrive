@@ -34,11 +34,15 @@ func NewRouter(healthHandler *health.Handler, uploadHandler *upload.Handler, dow
 		case *filedomain.Handler:
 			if handler != nil {
 				mux.HandleFunc("GET /api/v1/files", handler.List)
+				mux.HandleFunc("PATCH /api/v1/files/{id}", handler.Rename)
 				mux.HandleFunc("DELETE /api/v1/files/{id}", handler.Delete)
 			}
 		case *directory.Handler:
 			if handler != nil {
 				mux.HandleFunc("GET /api/v1/directories", handler.List)
+				mux.HandleFunc("POST /api/v1/directories", handler.Create)
+				mux.HandleFunc("PATCH /api/v1/directories/{id}", handler.Rename)
+				mux.HandleFunc("DELETE /api/v1/directories/{id}", handler.Delete)
 			}
 		case *auth.Handler:
 			if handler != nil {
@@ -66,7 +70,7 @@ func cors(next http.Handler) http.Handler {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 			w.Header().Add("Vary", "Origin")
 		}
 		if r.Method == http.MethodOptions {

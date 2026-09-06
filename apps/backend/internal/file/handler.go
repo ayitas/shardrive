@@ -3,7 +3,9 @@ package file
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/ayitas/shardrive/apps/backend/internal/auth"
 	"github.com/ayitas/shardrive/apps/backend/internal/domain"
@@ -15,6 +17,9 @@ type fileRepository interface {
 type deletionRepository interface {
 	GetForUser(context.Context, string, string) (File, error)
 	Transition(context.Context, string, State, State) (File, error)
+}
+type renameRepository interface {
+	Rename(context.Context, string, string, string) (File, error)
 }
 
 type Handler struct {
@@ -91,6 +96,41 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusAccepted)
+}
+
+func (h *Handler) Rename(w http.ResponseWriter, r *http.Request) {
+	renamer, ok := h.repository.(renameRepository)
+	if !ok || h.requestUserID(r) == "" {
+		writeError(w, http.StatusServiceUnavailable, "not_configured", "file rename is not configured")
+		return
+	}
+	userID, err := domain.NormalizeUUID(h.requestUserID(r))
+	if err != nil {
+		writeError(w, http.StatusServiceUnavailable, "not_configured", "file API user is invalid")
+		return
+	}
+	var request struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&request); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", "request body must be valid JSON")
+		return
+	}
+	name := strings.TrimSpace(request.Name)
+	if name == "" || len(name) > 255 {
+		writeError(w, http.StatusBadRequest, "invalid_request", "name must be between 1 and 255 characters")
+		return
+	}
+	value, err := renamer.Rename(r.Context(), r.PathValue("id"), userID, name)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "not_found", "file was not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "internal_error", "could not rename file")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"id": value.ID, "name": value.Name, "updatedAt": value.UpdatedAt})
 }
 
 func (h *Handler) requestUserID(r *http.Request) string {

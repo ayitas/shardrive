@@ -42,9 +42,13 @@ POST /api/v1/auth/login
 POST /api/v1/auth/logout
 GET  /api/v1/auth/me
 GET  /api/v1/files
+PATCH /api/v1/files/{fileId}
 DELETE /api/v1/files/{fileId}
 GET  /api/v1/accounts
 GET  /api/v1/directories?parentId={directoryId}
+POST /api/v1/directories
+PATCH /api/v1/directories/{directoryId}
+DELETE /api/v1/directories/{directoryId}
 GET  /api/v1/files/{fileId}/download
 ```
 
@@ -141,11 +145,12 @@ Configuration is provided through environment variables documented in
 ```text
 apps/backend/       Go modular monolith
 apps/frontend/      SvelteKit application (Phase 1)
-apps/proton-adapter Proton Drive adapter (blocked until Phase 0 passes)
+apps/proton-adapter Proton Drive adapter (Phase 2, after the Phase 1 gate)
 deploy/             Local deployment files
 proto/              Provider adapter protocol definitions (Phase 2)
 ```
 
 See [`PROGRESS.md`](PROGRESS.md) for the exact implementation status and actual
-verification commands. Proton integration remains blocked until a later phase;
-the next work starts with the SvelteKit frontend.
+verification commands. The Phase 1 release-candidate gate now has an automated
+Firefox test; Proton integration starts after this LocalProvider gate remains
+green.

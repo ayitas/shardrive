@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+package shardrive.storage.v1;
+
+option go_package = "github.com/ayitas/shardrive/proto/storagev1;storagev1";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+// StorageAdapter is the provider-neutral boundary between the Go core and a
+// remote storage adapter. Credentials and provider-specific SDK values never
+// cross this boundary. account_id is Shardrive's internal storage account ID.
+service StorageAdapter {
+  // The first UploadRequest must contain start metadata. Every following
+  // request carries a bounded data frame. The adapter must not require the
+  // complete object in memory or on disk.
+  rpc Upload(stream UploadRequest) returns (UploadResponse);
+
+  // Download returns bounded data frames in order. The stream ends at EOF.
+  rpc Download(ObjectRequest) returns (stream DownloadResponse);
+
+  rpc Delete(ObjectRequest) returns (google.protobuf.Empty);
+  rpc Stat(ObjectRequest) returns (ObjectInfo);
+  rpc Usage(AccountRequest) returns (StorageUsage);
+  rpc Health(AccountRequest) returns (HealthResponse);
+}
+
+message AccountRequest {
+  string account_id = 1;
+}
+
+message ObjectRequest {
+  string account_id = 1;
+  string object_id = 2;
+}
+
+message UploadRequest {
+  oneof payload {
+    UploadStart start = 1;
+    bytes data = 2;
+  }
+}
+
+message UploadStart {
+  string account_id = 1;
+  string object_id = 2;
+  int64 size_bytes = 3;
+}
+
+message UploadResponse {
+  string object_id = 1;
+  int64 size_bytes = 2;
+}
+
+message DownloadResponse {
+  bytes data = 1;
+}
+
+message ObjectInfo {
+  string object_id = 1;
+  int64 size_bytes = 2;
+  google.protobuf.Timestamp modified_at = 3;
+}
+
+message StorageUsage {
+  int64 total_bytes = 1;
+  int64 used_bytes = 2;
+  int64 free_bytes = 3;
+}
+
+message HealthResponse {
+  bool healthy = 1;
+}

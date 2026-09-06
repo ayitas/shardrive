@@ -132,6 +132,30 @@ export class ShardriveApi {
 		return this.request(`/api/v1/directories${query}`);
 	}
 
+	createDirectory(name: string, parentId?: string): Promise<DirectorySummary> {
+		return this.request<DirectorySummary>('/api/v1/directories', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ name, parentId })
+		});
+	}
+
+	renameFile(fileId: string, name: string): Promise<Pick<FileSummary, 'id' | 'name' | 'updatedAt'>> {
+		return this.request(`/api/v1/files/${encodeURIComponent(fileId)}`, {
+			method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name })
+		});
+	}
+
+	renameDirectory(directoryId: string, name: string): Promise<DirectorySummary> {
+		return this.request(`/api/v1/directories/${encodeURIComponent(directoryId)}`, {
+			method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name })
+		});
+	}
+
+	deleteDirectory(directoryId: string): Promise<void> {
+		return this.request<void>(`/api/v1/directories/${encodeURIComponent(directoryId)}`, { method: 'DELETE' });
+	}
+
 	listAccounts(): Promise<{ accounts: AccountSummary[] }> { return this.request('/api/v1/accounts'); }
 	deleteFile(fileId: string): Promise<void> { return this.request<void>(`/api/v1/files/${encodeURIComponent(fileId)}`, { method: 'DELETE' }); }
 
@@ -164,7 +188,9 @@ export class ShardriveApi {
 				body.error?.message ?? `Request failed with HTTP ${response.status}`
 			);
 		}
-		if (response.status === 204) return undefined as T;
-		return (await response.json()) as T;
+		if (response.status === 204 || response.status === 205) return undefined as T;
+		const body = await response.text();
+		if (!body.trim()) return undefined as T;
+		return JSON.parse(body) as T;
 	}
 }

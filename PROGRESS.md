@@ -1,20 +1,21 @@
 # PROGRESS.md — Shardrive
 
-Last updated: 2026-09-05
+Last updated: 2026-09-06
 
 ## Current State
 
 **Phase:** Phase 1 — SvelteKit  
-**Status:** Phase 0 COMPLETE; Phase 1 scaffold started — milestones 0.1 through 0.8 and the automated
-Phase 0 gate pass. Upload, completion, and sequential download survive
-application-state recreation using PostgreSQL and LocalProvider.
+**Status:** Phase 0 COMPLETE; Phase 1 product release-candidate browser gate passed
+with Firefox MCP against Docker Compose. Login, resumed upload, completion,
+download, checksum verification, async delete, and worker cleanup now pass
+through the real SvelteKit UI.
 
 Change review completed: frontend/auth/directory additions were audited, API
 routes were synchronized in README, and no code rollback was required.
 
 Phase 1 frontend scaffold is now present with strict TypeScript configuration
 and a typed cookie-based API client. `npm run check` and `npm run build` now pass
-with Node.js 24.20.0 LTS; npm reports three low-severity audit findings that
+with Node.js 24.20.0 LTS; npm reports four low-severity audit findings that
 remain intentionally unmodified pending dependency review.
 
 The browser upload queue is now implemented as a bounded `File.slice` worker
@@ -32,6 +33,12 @@ ordered query, and is exposed through the typed frontend client.
 
 The frontend now uses that contract for root/child navigation, breadcrumbs,
 and an explicit parent-directory action while filtering files by directory.
+
+The Phase 1 Firefox gate found and fixed two frontend integration bugs: a
+successful chunk worker did not decrement its in-flight counter, so a complete
+upload could remain stuck at `UPLOADING`; and the API client attempted to parse
+empty `202 Accepted` delete responses as JSON. Both fixes pass the frontend
+check/build and the browser flow was rerun successfully.
 
 Argon2id password hashing groundwork is now available in `internal/auth` with
 PHC-style encoded hashes and constant-time verification. Login/session routes
@@ -324,6 +331,7 @@ Status: UNBLOCKED — Phase 0 gate passed.
 - [x] login
 - [x] file browser
 - [x] folder navigation
+- [x] folder creation
 - [x] upload drop zone
 - [x] File.slice chunking
 - [x] 3-worker queue
@@ -332,22 +340,210 @@ Status: UNBLOCKED — Phase 0 gate passed.
 - [x] pause/resume
 - [x] retry
 - [x] IndexedDB upload metadata
+- [x] active upload status panel
+- [x] pending upload resume/remove list
 - [x] storage dashboard
+- [x] human-readable storage meter
 - [x] file download
 - [x] file delete
+- [x] file rename
+- [x] folder rename
+
+## Phase 1 Product Beta Scope
+
+The next product hardening slice is intentionally limited to the virtual-drive
+workflow before Proton integration:
+
+- [x] upload queue status and pending-session actions
+- [x] rename files and folders
+- [x] safe folder deletion with descendant handling (empty folders only; non-empty returns 409)
+- [x] sorting by name, size, and updated time
+- [x] simple file search within the current user scope
+- [x] responsive/mobile layout pass
+- [x] Firefox and Chromium beta gate
+
+# Phase 1 Release Candidate Gate
+
+- [x] Docker Compose rebuilt and healthy
+- [x] Firefox login/logout session flow
+- [x] browser upload through `File.slice`
+- [x] completed upload survives page reload/resume
+- [x] sequential download from the UI
+- [x] downloaded SHA-256 equals original SHA-256
+- [x] `202 Accepted` file deletion handled by frontend
+- [x] worker cleanup reaches `DELETED` and releases quota
+
+Manual gate result on 2026-09-06:
+
+```text
+ORIGINAL_SHA256=4d87bf3d7436b73c9810ef8a5fabcfcbce3a79a17e66df91088d69347223b942
+DOWNLOADED_SHA256=4d87bf3d7436b73c9810ef8a5fabcfcbce3a79a17e66df91088d69347223b942
+file state after cleanup: DELETED
+chunk state after cleanup: DELETED
+storage usage after cleanup: 0 / 5368709120 bytes
+```
+
+The repeatable Firefox Playwright gate also passed on 2026-09-06 with
+`npm run test:e2e`. It uses `E2E_EMAIL` and `E2E_PASSWORD` from the environment,
+creates a 1 MiB in-memory fixture, compares the downloaded bytes and SHA-256,
+then waits for the worker-backed delete cleanup.
+
+Product polish now includes user-created folders, folder-scoped uploads, a
+human-readable storage meter, clearer file/folder counts, and improved empty,
+loading, and action states. The Firefox E2E gate also creates and enters a
+unique folder before uploading its fixture.
+
+The product gate also caught and fixed a real Svelte reactivity issue where the
+storage API returned the configured 5 GiB pool but the UI remained at `0 B / 0
+B`. Storage totals are now stored as direct reactive aggregates and Firefox
+renders `0 B / 5.0 GiB` after cleanup.
+
+The upload experience now has a dedicated active-upload panel with filename,
+state, byte/chunk progress, speed/ETA, retry feedback, and pause/resume/cancel
+actions. Pending IndexedDB sessions are presented as a compact resume/remove
+list instead of an undifferentiated metadata block.
+
+Product Beta now includes file and folder rename through user-scoped `PATCH`
+routes. The browser gate caught the missing `PATCH` CORS allowance during this
+slice; it is fixed and the renamed-folder upload/download/delete flow passes.
+
+Exact frontend RC validation commands run:
+
+```text
+bash -lc 'nvm use --lts >/dev/null && npm install -D @playwright/test'
+bash -lc 'nvm use --lts >/dev/null && npx playwright install firefox'
+bash -lc 'nvm use --lts >/dev/null && E2E_EMAIL=e2e@example.test E2E_PASSWORD=e2e-local-only-password npm run test:e2e'
+bash -lc 'nvm use --lts >/dev/null && npm run check && npm run build'
+git diff --check
+```
+
+Final product-gate result:
+
+```text
+1 passed (6.9s)
+```
+
+After the upload queue panel changes, the rebuilt-container Firefox gate also
+passed:
+
+```text
+1 passed (7.0s)
+```
+
+After the rename and CORS changes, the Firefox gate including folder rename also
+passed:
+
+```text
+1 passed (7.0s)
+```
+
+After safe folder deletion was added, the rebuilt-container Firefox gate also
+passed the renamed-folder → upload → download → file cleanup → empty-folder
+deletion flow:
+
+```text
+1 passed (8.9s)
+```
+
+The product gate now also selects `Name A–Z` in the browser before executing
+that flow. The async delete assertion intentionally waits for worker cleanup
+before requiring the file row to disappear.
+
+The same browser gate now verifies file search in the active folder: a matching
+filename remains visible, a non-matching query hides it, and clearing the query
+restores it.
+
+The responsive pass stacks search/sort and folder actions below 640px, makes
+file actions wrap vertically, and the Firefox gate now runs at 390x844 while
+asserting there is no horizontal overflow.
+
+Final search-slice Firefox result:
+
+```text
+1 passed (13.1s)
+```
+
+Final mobile-layout Firefox result:
+
+```text
+1 passed (11.0s)
+```
+
+The Playwright configuration now runs the Product Beta gate in both Firefox
+and Chromium. Final two-browser result after installing Chromium:
+
+```text
+2 passed (9.8s)
+```
 
 # Phase 2 — Proton Adapter, One Account
 
-Status: BLOCKED by Phase 0 stability.
+Status: SPIKE ONLY — LocalProvider and the Phase 1 release-candidate browser
+gate passed. Official SDK investigation completed; production integration is
+conditional on a successful one-account adapter spike and session recovery
+proof.
 
 Before coding:
-- [ ] inspect current official Proton Drive SDK
-- [ ] record selected SDK version
-- [ ] document auth/session requirements
-- [ ] document breaking-change risk
+- [x] inspect current official Proton Drive SDK
+- [x] record selected SDK source/version
+- [x] document auth/session requirements
+- [x] document breaking-change risk
+
+## Phase 2A SDK Investigation — 2026-09-06
+
+Sources reviewed:
+
+- Official SDK repository: `ProtonDriveApps/sdk`, `main`
+- TypeScript package: `@protontech/drive-sdk`, source package version `0.0.1`
+- Official TypeScript client README and package manifest
+- Official Proton Drive SDK status and CLI documentation
+
+Findings:
+
+- The TypeScript SDK exposes a public `ProtonDriveClient` with high-level node,
+  upload, and download operations. Use only exported APIs; internal modules may
+  change without warning.
+- The SDK explicitly does not include authentication/login flows, session
+  management, or the user address provider. The adapter must own those pieces.
+- Proton's documentation says standalone SDK documentation is still being
+  prepared. The official clients are the current living integration reference.
+- Proton permits personal, non-commercial projects, but says the SDK is not yet
+  ready for third-party production use and its public interface may change.
+- Proton currently targets a cryptographic model migration for late 2026/early
+  2027. Older SDK releases may stop interoperating after the service migration.
+- Proton requires official endpoints, honest `x-pm-appversion` identification,
+  event-based synchronization, bounded parallelism, and exponential backoff.
+- The SDK handles Proton encryption and metadata processing; Shardrive must not
+  reimplement Proton cryptography in Go.
+
+Decision:
+
+```text
+PROCEED with a time-boxed one-account technical spike.
+DO NOT claim Proton production readiness or start multi-account integration.
+```
+
+Phase 2B boundary design is now recorded in `proto/storage.proto` and keeps
+credentials, Proton node IDs, and SDK types inside the adapter. Generated
+bindings remain deferred until the adapter runtime is selected.
+
+Spike exit criteria:
+
+- [ ] select and pin a tested SDK commit/package snapshot
+- [ ] document the supported auth/session handoff into the SDK
+- [ ] define encrypted credential/session persistence through `credential_ref`
+- [ ] prove streaming upload and download through the adapter
+- [ ] restart adapter and recover the session without re-authentication
+- [ ] prove delete, stat, usage, health, and provider-neutral errors
+- [ ] pass one-account checksum and remote cleanup tests
+
+Primary risk: the SDK is evolving toward a cryptographic migration while
+third-party production support and standalone integration documentation are not
+yet available. Keep the Proton adapter isolated so this risk cannot alter the
+LocalProvider core.
 
 Implementation:
-- [ ] storage.proto
+- [x] storage.proto provider-neutral contract
 - [ ] streaming Upload
 - [ ] streaming Download
 - [ ] Delete
@@ -368,7 +564,7 @@ Acceptance:
 
 # Phase 3 — Multi-Account Proton
 
-Status: FUTURE.
+Status: FUTURE — only after the one-account Proton spike passes.
 
 - [ ] runtime account management
 - [ ] 5 accounts
@@ -477,7 +673,7 @@ the same file. It also verifies chunks span multiple physical accounts.
 Future risk: Proton Drive SDK/auth/session behavior can change. Re-check official sources before Phase 2.
 
 No active frontend toolchain blocker. Node.js 24.20.0 LTS and npm 11.19.0 are
-installed through NVM. npm audit currently reports three low-severity findings;
+installed through NVM. npm audit currently reports four low-severity findings;
 no forced upgrade was applied.
 
 ## Tests Actually Run
@@ -637,7 +833,7 @@ recreated. API/PostgreSQL status: healthy. Download route without a configured
 Phase 0 user: HTTP 503 `not_configured`. Latest readiness: {"status":"ok"}.
 Frontend verification: Node.js v24.20.0, npm 11.19.0; `npm run check` passed
 with 0 errors/0 warnings and `npm run build` passed. npm install reported
-three low-severity audit findings; no forced upgrade was applied.
+four low-severity audit findings; no forced upgrade was applied.
 The same check/build command was rerun after adding the bounded upload queue and
 again passed with 0 errors/0 warnings.
 ```

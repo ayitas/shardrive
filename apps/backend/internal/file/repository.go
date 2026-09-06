@@ -89,6 +89,23 @@ func (r *Repository) ListByUser(ctx context.Context, userID string) ([]File, err
 	return values, nil
 }
 
+func (r *Repository) Rename(ctx context.Context, id, userID, name string) (File, error) {
+	var value File
+	err := scanFile(r.pool.QueryRow(ctx, `
+		UPDATE files SET name = $3, updated_at = now()
+		WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL AND state NOT IN ('DELETING', 'DELETED')
+		RETURNING id, user_id, directory_id, name, mime_type, size_bytes, chunk_size,
+			chunk_count, checksum_sha256, state, created_at, updated_at, deleted_at
+	`, id, userID, name), &value)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return File{}, &domain.Error{Kind: domain.ErrNotFound, Op: "rename", Entity: "file", Err: err}
+	}
+	if err != nil {
+		return File{}, fmt.Errorf("rename file: %w", err)
+	}
+	return value, nil
+}
+
 func (r *Repository) Transition(ctx context.Context, id string, from, to State) (File, error) {
 	if err := ValidateTransition(from, to); err != nil {
 		return File{}, err
