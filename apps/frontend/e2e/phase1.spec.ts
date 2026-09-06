@@ -20,6 +20,10 @@ test('Phase 1 upload, download, and delete gate', async ({ page }) => {
 	await page.getByRole('button', { name: 'Sign in' }).click();
 	await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
 	expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+	const accountsCard = page.getByLabel('Storage accounts');
+	await expect(accountsCard).toContainText('connected');
+	await accountsCard.getByRole('button', { name: 'Refresh', exact: true }).first().click();
+	await expect(accountsCard.locator('.status-pill').first()).toContainText('ACTIVE');
 	const sortSelect = page.getByLabel('Sort files and folders');
 	await sortSelect.selectOption('name-asc');
 	await expect(sortSelect).toHaveValue('name-asc');

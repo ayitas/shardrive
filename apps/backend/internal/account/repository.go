@@ -61,13 +61,13 @@ func (r *Repository) Refresh(ctx context.Context, userID, id string, p RefreshPa
 	var value Account
 	err := scanAccount(r.pool.QueryRow(ctx, `
 		UPDATE storage_accounts
-		SET status = $3, total_bytes = $4, used_bytes = $5, free_bytes = $6,
-			last_health_check = now(), last_error = $7, updated_at = now()
+		SET status = $3, total_bytes = $4, used_bytes = $5,
+			last_health_check = now(), last_error = $6, updated_at = now()
 		WHERE user_id = $1 AND id = $2
 		RETURNING id, user_id, name, provider, status, total_bytes, used_bytes, free_bytes,
 			priority, max_upload_workers, max_download_workers, credential_ref,
 			rate_limited_until, last_health_check, last_error, created_at, updated_at
-	`, userID, id, p.State, p.TotalBytes, p.UsedBytes, p.FreeBytes, p.ErrorCode), &value)
+	`, userID, id, p.State, p.TotalBytes, p.UsedBytes, p.ErrorCode), &value)
 	if err != nil {
 		return Account{}, mapError("refresh", err)
 	}

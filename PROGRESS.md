@@ -1030,8 +1030,8 @@ same command completed successfully.
 
 ## Next 3 Tasks
 
-1. Add provider-neutral account health/quota refresh actions and durable status updates.
-2. Add frontend component/route tests for account status rendering and degraded states.
+1. Add frontend component/route tests for account status rendering and degraded states.
+2. Add a provider-neutral account health/quota worker path for scheduled refresh.
 3. Revisit the Proton adapter only after selecting a reproducible official-runtime dependency strategy.
 
 Current sequencing note: retry status is implemented; auth rate limiting now
@@ -1130,6 +1130,11 @@ and persists the observation in PostgreSQL. The dashboard exposes a per-account
 Refresh action; provider-specific errors are reduced to safe error codes and
 never persisted as raw provider messages.
 
+The refresh persistence path now has PostgreSQL integration coverage, including
+generated `free_bytes` recalculation, health timestamp/error-code persistence,
+and cross-user ownership rejection. The Phase 1 browser gate now exercises the
+dashboard Refresh action in both Chromium and Firefox.
+
 Storage API handlers now resolve the authenticated user ID from the validated
 PostgreSQL session context (with the configured ID retained only for isolated
 Phase 0/test routers). Production routing requires a valid session for upload,
@@ -1191,6 +1196,20 @@ git diff --check
 All completed successfully. No live Proton transfer was added; the official
 CLI's unpublished account runtime remains an explicit Phase 2 integration
 blocker rather than being replaced with a non-streaming CLI shim.
+
+Additional browser verification in this session:
+
+```text
+nvm use --lts >/dev/null && E2E_EMAIL=e2e@example.test E2E_PASSWORD=e2e-local-only-password npm run test:e2e
+```
+
+Both configured projects passed:
+
+```text
+chromium: passed
+firefox: passed
+2 passed (9.4s)
+```
 
 All commands completed successfully; no blockers remain for this milestone.
 
