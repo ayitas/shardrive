@@ -8,7 +8,8 @@
     "test": "tsx --test test/**/*.test.ts",
     "sdk:smoke": "node scripts/sdk-bundle-smoke.mjs",
     "proton:runtime:probe": "node scripts/proton-runtime-probe.mjs",
-    "proton:adapter": "node scripts/proton-adapter-server.mjs"
+    "proton:adapter": "node scripts/proton-adapter-server.mjs",
+    "proton:session:import": "npx --yes bun scripts/import-proton-cli-session.ts"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.13.4",

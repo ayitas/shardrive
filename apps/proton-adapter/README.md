@@ -135,6 +135,25 @@ factory is now used by the adapter process entrypoint below.
 
 ## Adapter process entrypoint
 
+### Local session setup
+
+Before connecting the account in the dashboard, import the already-authenticated
+official CLI session into the adapter vault from the OS keychain:
+
+```text
+export SHARDRIVE_PROTON_MASTER_KEY_B64="$(openssl rand -base64 32)"
+export SHARDRIVE_PROTON_ACCOUNT_REF=account-1
+export SHARDRIVE_PROTON_SESSION_ROOT=/var/lib/shardrive/proton-sessions
+npm run proton:session:import
+```
+
+The command reads only the official CLI OS-secret-store entry, validates its
+shape, encrypts it with AES-256-GCM, writes a mode `0600` account file, and
+prints only the opaque reference and vault directory. Persist the master key
+through a Docker secret or equivalent protected environment; never put it in
+the repository or send it through the HTTP/gRPC API. Use the same
+`account_ref` as the dashboard's `credentialRef`.
+
 `npm run proton:adapter` builds and starts the real gRPC adapter process. It
 requires the pinned SDK source, an encrypted session directory, and a 32-byte
 master key supplied as base64:

@@ -1341,6 +1341,26 @@ Next three tasks are: add account/provider health state synchronization to the
 Go account repository for Proton failures, wire one configured Proton account
 into the product account lifecycle, and only then expand to multi-account
 placement. The cross-language and restart/session-recovery gates are complete.
+
+The supported local session setup is now executable as
+`npm run proton:session:import`. It reads the official CLI OS keychain entry,
+validates the snapshot, encrypts it into the adapter vault, and prints no
+credential material. The dashboard `credentialRef` must match the imported
+`SHARDRIVE_PROTON_ACCOUNT_REF`; the master key remains an operator-managed
+secret.
+
+Exact adapter setup verification:
+
+```text
+export SHARDRIVE_PROTON_MASTER_KEY_B64=$(tr -d '\\n' < /tmp/shardrive-live-proton-master-key.b64)
+export SHARDRIVE_PROTON_ACCOUNT_REF=account-1
+export SHARDRIVE_PROTON_SESSION_ROOT=/tmp/shardrive-live-proton-sessions
+npm run proton:session:import
+npm run check
+npm run build
+npm test
+npm run sdk:smoke
+```
 ```
 
 All commands completed successfully; no blockers remain for this milestone.

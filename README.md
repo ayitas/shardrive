@@ -58,6 +58,8 @@ To connect one Proton account, send `POST /api/v1/accounts` with
 `{"name":"Personal Proton","provider":"proton","credentialRef":"account-1"}`.
 `credentialRef` is only an opaque adapter-session reference; passwords, access
 tokens, and Proton credentials are never accepted by this API.
+Run the adapter's local `proton:session:import` setup command first to create
+that encrypted session reference from the official CLI OS keychain.
 
 ## Requirements
 
