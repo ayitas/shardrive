@@ -110,3 +110,10 @@ official source tree at the pinned commit. The probe bundles the SDK,
 account, and crypto runtime, reads the existing OS-secret-store session,
 constructs a `ProtonDriveClient`, and reads only the My Files root metadata.
 It prints no credential, token, filename, or node ID.
+
+`src/proton-storage-backend.ts` now provides the provider-neutral stream bridge
+for the official SDK shape. It uses the SDK's uploader/downloader streams,
+performs Proton trash-then-permanent-delete, maps node metadata to Shardrive
+stat results, and delegates account health/quota to the runtime factory. Its
+10-test adapter suite uses a fake SDK runtime; live transfer is intentionally
+not claimed until the source-pinned runtime factory is wired to this backend.

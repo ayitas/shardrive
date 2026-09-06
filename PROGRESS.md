@@ -605,6 +605,14 @@ Phase 2B boundary runtime slice:
 - [x] in-process gRPC wire test with fake backend
 - [ ] Proton SDK-backed storage backend
 
+The adapter now contains a provider-neutral `ProtonStorageBackend` stream
+bridge. It maps the official SDK uploader/downloader, node stat, trash plus
+permanent delete, and injected health/quota operations into the adapter
+contract. Its fake-runtime test proves upload/download streaming and all
+provider operations without claiming a live remote transfer. The remaining
+work is wiring the source-pinned runtime factory to this backend and proving
+one-account checksum/restart/cleanup behavior against Proton.
+
 Spike exit criteria:
 
 - [ ] confirm the immutable upstream commit/package relationship
@@ -1231,9 +1239,9 @@ npm run sdk:smoke
 
 The source-pinned probe bundled 225 modules, constructed `ProtonDriveClient`,
 and read the My Files root successfully with HTTP 200. Adapter checks passed
-with 9 tests, and the public SDK bundle smoke passed. This is still read-only
-runtime proof; `ProtonStorageBackend` upload/download/delete/stat/usage/health
-remains the next implementation gate.
+with 10 tests, and the public SDK bundle smoke passed. This is still read-only
+live runtime proof; the backend stream bridge is fake-runtime tested, while
+live Proton upload/download/delete/stat/usage/health remains the next gate.
 ```
 
 All commands completed successfully; no blockers remain for this milestone.
