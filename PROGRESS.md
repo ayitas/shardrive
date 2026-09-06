@@ -4,11 +4,11 @@ Last updated: 2026-09-06
 
 ## Current State
 
-**Phase:** Phase 1 — SvelteKit  
-**Status:** Phase 0 COMPLETE; Phase 1 product release-candidate browser gate passed
-with Firefox MCP against Docker Compose. Login, resumed upload, completion,
-download, checksum verification, async delete, and worker cleanup now pass
-through the real SvelteKit UI.
+**Phase:** Phase 2A — Proton SDK investigation and one-account spike preparation
+**Status:** Phase 0 COMPLETE; Phase 1 product release-candidate browser gate passed;
+Phase 2A investigation and provider-neutral boundary design are complete. The
+one-account Proton adapter implementation remains intentionally gated on an
+immutable SDK snapshot and a testable session-recovery environment.
 
 Change review completed: frontend/auth/directory additions were audited, API
 routes were synchronized in README, and no code rollback was required.
@@ -501,10 +501,16 @@ Before coding:
 
 Sources reviewed:
 
-- Official SDK repository: `ProtonDriveApps/sdk`, `main`
-- TypeScript package: `@protontech/drive-sdk`, source package version `0.0.1`
+- Official SDK repository: [`ProtonDriveApps/sdk`](https://github.com/ProtonDriveApps/sdk), `main`
+- TypeScript package: [`@protontech/drive-sdk`](https://github.com/ProtonDriveApps/sdk/tree/main/client/js), source package version `0.0.1`
 - Official TypeScript client README and package manifest
 - Official Proton Drive SDK status and CLI documentation
+
+Revalidation on 2026-09-06 confirmed the same constraints against the current
+official sources. The JavaScript changelog currently identifies `js/v0.20.0`,
+while the source package manifest still identifies version `0.0.1`; this is not
+yet a sufficient immutable production pin. The live spike must record the
+resolved npm tarball and the exact upstream commit together.
 
 Findings:
 
@@ -534,6 +540,12 @@ DO NOT claim Proton production readiness or start multi-account integration.
 Phase 2B boundary design is now recorded in `proto/storage.proto` and keeps
 credentials, Proton node IDs, and SDK types inside the adapter. Generated
 bindings remain deferred until the adapter runtime is selected.
+
+The session handoff design is now recorded in `apps/proton-adapter/README.md`:
+the adapter owns authentication and encrypted session persistence, PostgreSQL
+stores only `credential_ref`, and no password or provider token crosses gRPC.
+This is a design decision only; session recovery remains unproven until a
+real one-account test environment is available.
 
 Spike exit criteria:
 
