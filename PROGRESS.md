@@ -569,6 +569,7 @@ Phase 2A implementation slice:
 - [x] exact npm SDK package pin (`@protontech/drive-sdk@0.21.0`)
 - [x] public-export bundle smoke test
 - [x] injected Proton SDK client factory and auth-required state
+- [x] validated Proton CLI session snapshot importer
 - [ ] live Proton session bootstrap and SDK client construction
 
 Factory compatibility note: SDK 0.21.0's declaration graph currently pulls

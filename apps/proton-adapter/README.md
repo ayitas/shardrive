@@ -51,6 +51,13 @@ loads account-scoped SDK constructor parameters, the factory returns
 and the SDK constructor is injected so the bundled runtime is explicit. The
 factory test uses no Proton credentials or network calls.
 
+`src/proton-cli-session.ts` accepts the official CLI's documented session
+snapshot shape and writes only validated fields through the encrypted store
+boundary. This importer is intended for a local test bootstrap using the CLI's
+opt-in `unsafe_file` store; it must not become the default production
+credential store. The default production path remains an OS secret store or
+the adapter-owned encrypted store.
+
 The factory intentionally uses a structural generic contract instead of
 importing the SDK's declaration graph into the adapter compiler. SDK 0.21.0's
 public declaration entry currently pulls TypeScript source from its crypto peer,
