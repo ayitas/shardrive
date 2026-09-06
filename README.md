@@ -45,6 +45,7 @@ GET  /api/v1/files
 PATCH /api/v1/files/{fileId}
 DELETE /api/v1/files/{fileId}
 GET  /api/v1/accounts
+POST /api/v1/accounts
 POST /api/v1/accounts/{accountId}/refresh
 GET  /api/v1/directories?parentId={directoryId}
 POST /api/v1/directories
@@ -52,6 +53,11 @@ PATCH /api/v1/directories/{directoryId}
 DELETE /api/v1/directories/{directoryId}
 GET  /api/v1/files/{fileId}/download
 ```
+
+To connect one Proton account, send `POST /api/v1/accounts` with
+`{"name":"Personal Proton","provider":"proton","credentialRef":"account-1"}`.
+`credentialRef` is only an opaque adapter-session reference; passwords, access
+tokens, and Proton credentials are never accepted by this API.
 
 ## Requirements
 

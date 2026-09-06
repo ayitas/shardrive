@@ -81,6 +81,7 @@ export interface DirectorySummary {
 }
 export interface AccountSummary { id: string; name: string; provider: string; state: string; totalBytes: number; usedBytes: number; freeBytes: number }
 export interface RefreshAccountResponse { account: AccountSummary; healthy: boolean; errorCode?: string }
+export interface CreateAccountRequest { name: string; provider: 'proton'; credentialRef: string }
 
 export interface AuthUser { userId: string; email?: string }
 
@@ -158,6 +159,7 @@ export class ShardriveApi {
 	}
 
 	listAccounts(): Promise<{ accounts: AccountSummary[] }> { return this.request('/api/v1/accounts'); }
+	createAccount(request: CreateAccountRequest): Promise<{ account: AccountSummary; healthy: boolean }> { return this.request('/api/v1/accounts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(request) }); }
 	refreshAccount(accountId: string): Promise<RefreshAccountResponse> { return this.request(`/api/v1/accounts/${encodeURIComponent(accountId)}/refresh`, { method: 'POST' }); }
 	deleteFile(fileId: string): Promise<void> { return this.request<void>(`/api/v1/files/${encodeURIComponent(fileId)}`, { method: 'DELETE' }); }
 

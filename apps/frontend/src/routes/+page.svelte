@@ -27,6 +27,9 @@
 	let accounts: AccountSummary[] = [];
 	let selectedPendingUploadId = '';
 	let refreshingAccountId = '';
+	let newAccountName = '';
+	let newAccountReference = '';
+	let creatingAccount = false;
 	let newFolderName = '';
 	let creatingFolder = false;
 	type SortOption = 'name-asc' | 'name-desc' | 'size-desc' | 'updated-desc';
@@ -123,6 +126,26 @@
 			error = cause instanceof Error ? cause.message : 'Could not refresh storage account';
 		} finally {
 			refreshingAccountId = '';
+		}
+	}
+
+	async function createProtonAccount(): Promise<void> {
+		const name = newAccountName.trim();
+		const credentialRef = newAccountReference.trim();
+		if (!name || !credentialRef || creatingAccount) return;
+		creatingAccount = true;
+		error = '';
+		try {
+			const response = await api.createAccount({ name, provider: 'proton', credentialRef });
+			accounts = [...accounts, response.account];
+			newAccountName = '';
+			newAccountReference = '';
+			storageUsed = accounts.reduce((sum, account) => sum + account.usedBytes, 0);
+			storageTotal = accounts.reduce((sum, account) => sum + account.totalBytes, 0);
+		} catch (cause) {
+			error = cause instanceof Error ? cause.message : 'Could not connect Proton account';
+		} finally {
+			creatingAccount = false;
 		}
 	}
 
@@ -296,6 +319,14 @@
 		</div>
 		<section class="accounts-card" aria-label="Storage accounts">
 			<div class="section-heading"><h2>Storage accounts</h2><span class="muted">{accounts.length} connected</span></div>
+			<form class="account-connect-form" on:submit|preventDefault={createProtonAccount}>
+				<label for="proton-account-name">Proton account name</label>
+				<input id="proton-account-name" bind:value={newAccountName} placeholder="Personal Proton" maxlength="255" />
+				<label for="proton-account-reference">Session reference</label>
+				<input id="proton-account-reference" bind:value={newAccountReference} placeholder="account-1" maxlength="128" />
+				<small class="muted">Opaque reference to the adapter session; never enter a password or token.</small>
+				<button type="submit" disabled={!newAccountName.trim() || !newAccountReference.trim() || creatingAccount}>{creatingAccount ? 'Connecting…' : 'Connect Proton account'}</button>
+			</form>
 			{#if accounts.length === 0}
 				<p class="muted">No storage accounts are configured.</p>
 			{:else}
@@ -379,6 +410,8 @@
 	.account-name .muted { font-size: .85rem; }
 	.account-summary { margin-top: .35rem; font-size: .85rem; }
 	.account-warning { margin: .5rem 0 0; color: #f4c27a; font-size: .85rem; }
+	.account-connect-form { display: grid; gap: .4rem; margin: .8rem 0 1rem; max-width: 32rem; }
+	.account-connect-form label { font-size: .85rem; color: #b8c2d9; }
 	.status-active { background: #164e3b; color: #a7f3d0; }
 	.status-full, .status-rate_limited { background: #713f12; color: #fde68a; }
 	.status-offline, .status-auth_failed, .status-auth_required, .status-disabled { background: #5b1d2a; color: #fecdd3; }

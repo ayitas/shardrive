@@ -1310,6 +1310,14 @@ authentication failures map to `AUTH_FAILED`. The account refresh layer stores
 the corresponding provider-neutral error codes for the dashboard and future
 placement filtering; no Proton-specific error type enters the Go core.
 
+The one-account product lifecycle is now wired. `POST /api/v1/accounts` accepts
+only a Proton name and a validated opaque `credentialRef`; it rejects invalid
+reference characters and unknown fields, never returns the reference, and immediately runs a
+provider refresh when the adapter is configured. The Go provider uses the
+reference for adapter session lookup while keeping the database account UUID
+as the source-of-truth identity. The frontend account dashboard now exposes a
+small Proton connection form and existing refresh/status controls.
+
 Additional verification:
 
 ```text
@@ -1325,6 +1333,9 @@ SHARDRIVE_LIVE_GRPC_ADDRESS=127.0.0.1:50051 SHARDRIVE_LIVE_ACCOUNT_ID=account-1 
 
 The state mapping increment also passed the targeted provider/account tests,
 full `go test ./...`, `go vet ./...`, and `git diff --check`.
+
+The lifecycle UI passed `npm run check`, `npm run build`, and the Chromium plus
+Firefox Phase 1 browser gate (`2 passed`).
 
 Next three tasks are: add account/provider health state synchronization to the
 Go account repository for Proton failures, wire one configured Proton account

@@ -63,7 +63,7 @@ func (p *Provider) Upload(ctx context.Context, storageAccount account.Account, r
 	if err != nil {
 		return storage.StoredObject{}, mapError(err)
 	}
-	if err := stream.SendMsg(&uploadRequest{Start: &uploadStart{AccountID: storageAccount.ID, ObjectID: request.ObjectID, SizeBytes: request.SizeBytes}}); err != nil {
+	if err := stream.SendMsg(&uploadRequest{Start: &uploadStart{AccountID: remoteAccountID(storageAccount), ObjectID: request.ObjectID, SizeBytes: request.SizeBytes}}); err != nil {
 		return storage.StoredObject{}, mapError(err)
 	}
 	buffer := make([]byte, maxDataFrameBytes)
@@ -105,7 +105,7 @@ func (p *Provider) Download(ctx context.Context, storageAccount account.Account,
 	if err != nil {
 		return nil, mapError(err)
 	}
-	if err := stream.SendMsg(&objectRequest{AccountID: storageAccount.ID, ObjectID: objectID}); err != nil {
+	if err := stream.SendMsg(&objectRequest{AccountID: remoteAccountID(storageAccount), ObjectID: objectID}); err != nil {
 		return nil, mapError(err)
 	}
 	if err := stream.CloseSend(); err != nil {
@@ -121,7 +121,7 @@ func (p *Provider) Delete(ctx context.Context, storageAccount account.Account, o
 	if objectID == "" {
 		return fmt.Errorf("grpc delete: %w: empty object id", storage.ErrInvalidRequest)
 	}
-	return p.invoke(ctx, "Delete", &objectRequest{AccountID: storageAccount.ID, ObjectID: objectID}, &empty{})
+	return p.invoke(ctx, "Delete", &objectRequest{AccountID: remoteAccountID(storageAccount), ObjectID: objectID}, &empty{})
 }
 
 func (p *Provider) Stat(ctx context.Context, storageAccount account.Account, objectID string) (storage.ObjectInfo, error) {
@@ -132,7 +132,7 @@ func (p *Provider) Stat(ctx context.Context, storageAccount account.Account, obj
 		return storage.ObjectInfo{}, fmt.Errorf("grpc stat: %w: empty object id", storage.ErrInvalidRequest)
 	}
 	response := new(objectInfo)
-	if err := p.invoke(ctx, "Stat", &objectRequest{AccountID: storageAccount.ID, ObjectID: objectID}, response); err != nil {
+	if err := p.invoke(ctx, "Stat", &objectRequest{AccountID: remoteAccountID(storageAccount), ObjectID: objectID}, response); err != nil {
 		return storage.ObjectInfo{}, err
 	}
 	modified := time.Unix(0, 0)
@@ -147,7 +147,7 @@ func (p *Provider) Usage(ctx context.Context, storageAccount account.Account) (s
 		return storage.StorageUsage{}, err
 	}
 	response := new(storageUsage)
-	if err := p.invoke(ctx, "Usage", &accountRequest{AccountID: storageAccount.ID}, response); err != nil {
+	if err := p.invoke(ctx, "Usage", &accountRequest{AccountID: remoteAccountID(storageAccount)}, response); err != nil {
 		return storage.StorageUsage{}, err
 	}
 	return storage.StorageUsage{TotalBytes: response.TotalBytes, UsedBytes: response.UsedBytes, FreeBytes: response.FreeBytes}, nil
@@ -158,7 +158,7 @@ func (p *Provider) Health(ctx context.Context, storageAccount account.Account) e
 		return err
 	}
 	response := new(healthResponse)
-	if err := p.invoke(ctx, "Health", &accountRequest{AccountID: storageAccount.ID}, response); err != nil {
+	if err := p.invoke(ctx, "Health", &accountRequest{AccountID: remoteAccountID(storageAccount)}, response); err != nil {
 		return err
 	}
 	if !response.Healthy {
@@ -201,6 +201,13 @@ func validateAccount(storageAccount account.Account) error {
 		return fmt.Errorf("grpc provider: %w: empty account id", storage.ErrInvalidRequest)
 	}
 	return nil
+}
+
+func remoteAccountID(storageAccount account.Account) string {
+	if storageAccount.CredentialRef != nil && *storageAccount.CredentialRef != "" {
+		return *storageAccount.CredentialRef
+	}
+	return storageAccount.ID
 }
 
 func mapError(err error) error {
