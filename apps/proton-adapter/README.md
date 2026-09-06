@@ -46,3 +46,11 @@ one metadata frame plus bounded data frames for upload, bounded server frames
 for download, and unary delete/stat/usage/health calls. The adapter receives
 only Shardrive's internal `account_id`; credential and session lookup remain
 inside the adapter.
+
+The provider-neutral Node runtime now loads this contract dynamically with
+`@grpc/proto-loader`. `src/grpc-server.ts` provides bounded client-streaming
+upload, server-streaming download, unary operations, cancellation-safe async
+chunk forwarding, and translation from adapter errors to gRPC status codes.
+Its `StorageBackend` interface is deliberately separate from Proton SDK types;
+the current integration test uses an in-memory fake backend and proves the
+wire contract without claiming a Proton connection.

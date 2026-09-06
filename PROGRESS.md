@@ -561,6 +561,16 @@ Phase 2A implementation slice:
 - [x] file permissions and account-ID path safety tests
 - [ ] Proton SDK client construction and authentication handoff
 
+Phase 2B boundary runtime slice:
+
+- [x] Node gRPC runtime loads the provider-neutral proto contract
+- [x] bounded client-streaming upload forwarding
+- [x] bounded server-streaming download forwarding
+- [x] unary delete/stat/usage/health handler wiring
+- [x] provider-neutral error to gRPC status translation
+- [x] in-process gRPC wire test with fake backend
+- [ ] Proton SDK-backed storage backend
+
 Spike exit criteria:
 
 - [ ] select and pin a tested SDK commit/package snapshot
@@ -578,16 +588,13 @@ LocalProvider core.
 
 Implementation:
 - [x] storage.proto provider-neutral contract
-- [ ] streaming Upload
-- [ ] streaming Download
-- [ ] Delete
-- [ ] Stat
-- [ ] Usage
-- [ ] Health
-- [ ] TypeScript adapter
+- [x] provider-neutral streaming Upload boundary
+- [x] provider-neutral streaming Download boundary
+- [x] provider-neutral Delete/Stat/Usage/Health boundary
+- [x] TypeScript adapter runtime scaffold
 - [ ] Proton session manager
-- [ ] encrypted session/credentials
-- [ ] provider-neutral error translation
+- [x] encrypted session/credentials vault foundation
+- [x] provider-neutral error translation
 - [ ] Go ProtonProvider
 
 Acceptance:
