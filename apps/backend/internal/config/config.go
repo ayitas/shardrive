@@ -32,6 +32,7 @@ type Config struct {
 	ShutdownTimeout         time.Duration
 	LocalStorageRoot        string
 	ProtonAdapterAddress    string
+	APIUserID               string
 	LocalAccountUserID      string
 	LocalAccountCount       int
 	LocalAccountQuotaBytes  int64
@@ -52,6 +53,7 @@ func Load() (Config, error) {
 		ShutdownTimeout:         defaultShutdownTimeout,
 		LocalStorageRoot:        envOrDefault("SHARDRIVE_LOCAL_STORAGE_ROOT", defaultLocalStorageRoot),
 		ProtonAdapterAddress:    os.Getenv("SHARDRIVE_PROTON_ADAPTER_ADDRESS"),
+		APIUserID:               os.Getenv("SHARDRIVE_API_USER_ID"),
 		LocalAccountUserID:      os.Getenv("SHARDRIVE_LOCAL_ACCOUNT_USER_ID"),
 		LocalAccountCount:       defaultLocalAccountCount,
 		LocalAccountQuotaBytes:  defaultLocalAccountQuota,

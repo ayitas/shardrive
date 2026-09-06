@@ -349,21 +349,26 @@ func (s *Service) UploadChunk(ctx context.Context, userID, uploadID string, inde
 			}
 			continue
 		}
-		if storedObject.ObjectID != objectID || storedObject.SizeBytes != expectedSize || counter.bytesRead != expectedSize {
-			_ = provider.Delete(ctx, selectedAccount, objectID)
+		if storedObject.ObjectID == "" || storedObject.SizeBytes != expectedSize || counter.bytesRead != expectedSize {
+			if storedObject.ObjectID != "" {
+				_ = provider.Delete(ctx, selectedAccount, storedObject.ObjectID)
+			} else {
+				_ = provider.Delete(ctx, selectedAccount, objectID)
+			}
 			return ChunkResult{}, fmt.Errorf("provider returned inconsistent stored object")
 		}
 		checksum := hex.EncodeToString(hasher.Sum(nil))
 		storedChunk, created, storeErr := s.chunks.Store(ctx, chunk.StoreParams{
 			UploadID: status.Session.ID, FileID: status.Session.FileID, Index: index,
 			SizeBytes: expectedSize, ChecksumSHA256: checksum,
-			StorageAccountID: selectedAccount.ID, RemoteObjectID: objectID,
+			StorageAccountID: selectedAccount.ID, RemoteObjectID: storedObject.ObjectID,
 		})
 		if storeErr != nil {
+			_ = provider.Delete(ctx, selectedAccount, storedObject.ObjectID)
 			return ChunkResult{}, storeErr
 		}
-		if !created && storedChunk.RemoteObjectID != nil && *storedChunk.RemoteObjectID != objectID {
-			_ = provider.Delete(ctx, selectedAccount, objectID)
+		if !created && storedChunk.RemoteObjectID != nil && *storedChunk.RemoteObjectID != storedObject.ObjectID {
+			_ = provider.Delete(ctx, selectedAccount, storedObject.ObjectID)
 		}
 		return resultFromChunk(storedChunk, created), nil
 	}

@@ -16,6 +16,7 @@ import (
 	filedomain "github.com/ayitas/shardrive/apps/backend/internal/file"
 	"github.com/ayitas/shardrive/apps/backend/internal/job"
 	"github.com/ayitas/shardrive/apps/backend/internal/storage"
+	grpcstorage "github.com/ayitas/shardrive/apps/backend/internal/storage/grpcprovider"
 	localstorage "github.com/ayitas/shardrive/apps/backend/internal/storage/local"
 )
 
@@ -50,6 +51,17 @@ func run(logger *slog.Logger) error {
 	if err := providers.Register("local", provider); err != nil {
 		return err
 	}
+	if cfg.ProtonAdapterAddress != "" {
+		protonProvider, err := grpcstorage.New(cfg.ProtonAdapterAddress)
+		if err != nil {
+			return err
+		}
+		if err := providers.Register("proton", protonProvider); err != nil {
+			_ = protonProvider.Close()
+			return err
+		}
+	}
+	defer providers.Close()
 	worker := job.NewCleanupWorker(job.NewRepository(pool), chunk.NewRepository(pool), account.NewRepository(pool), providers, "worker-1", filedomain.NewRepository(pool))
 	signalCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

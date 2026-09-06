@@ -6,7 +6,9 @@ gate has passed. The backend has PostgreSQL-backed domain repositories, a
 provider-neutral storage boundary, deterministic placement, streaming chunk
 ingestion, sequential integrity-checked completion/download, and durable
 account lifecycle wiring. Phase 3 multi-account Proton is the next product
-slice.
+slice. LocalProvider and Proton are intentionally not mixed in the default
+placement pool: LocalProvider is for development/testing, while the production
+multi-account target is a Proton-only pool.
 
 Phase 1 now includes a strict TypeScript SvelteKit scaffold and a typed API
 client. Frontend dependency installation and checks require Node.js 20+ and
@@ -27,9 +29,12 @@ a time under the account's configured worker limit. Memory is bounded to one
 chunk so its exact size and SHA-256 are verified before those bytes are written
 to the client; the continuous whole-file SHA-256 is checked at the end.
 
-During Phase 0 these routes use the existing user UUID configured by
-`SHARDRIVE_LOCAL_ACCOUNT_USER_ID`; if it is unset, they fail closed with HTTP
-503. Request-provided user IDs are never trusted. The available routes are:
+The current development API uses the existing user UUID configured by
+`SHARDRIVE_API_USER_ID`; if it is unset, user-scoped routes fail closed with
+HTTP 503. This is intentionally separate from
+`SHARDRIVE_LOCAL_ACCOUNT_USER_ID`, which only controls LocalProvider account
+provisioning. Request-provided user IDs are never trusted. The available routes
+are:
 
 ```text
 POST /api/v1/uploads

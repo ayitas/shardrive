@@ -123,24 +123,24 @@ func run(logger *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("configure upload service: %w", err)
 	}
-	uploadHandler := upload.NewHandler(uploadService, cfg.LocalAccountUserID, job.NewRepository(pool))
+	uploadHandler := upload.NewHandler(uploadService, cfg.APIUserID, job.NewRepository(pool))
 	downloadService, err := download.NewService(
 		filedomain.NewRepository(pool), chunk.NewRepository(pool), account.NewRepository(pool), providers,
 	)
 	if err != nil {
 		return fmt.Errorf("configure download service: %w", err)
 	}
-	downloadHandler := download.NewHandler(downloadService, cfg.LocalAccountUserID)
-	fileHandler := filedomain.NewHandler(filedomain.NewRepository(pool), cfg.LocalAccountUserID, func(ctx context.Context, userID, typ string, payload any, maxAttempts int) (string, error) {
+	downloadHandler := download.NewHandler(downloadService, cfg.APIUserID)
+	fileHandler := filedomain.NewHandler(filedomain.NewRepository(pool), cfg.APIUserID, func(ctx context.Context, userID, typ string, payload any, maxAttempts int) (string, error) {
 		return job.NewRepository(pool).Enqueue(ctx, userID, job.Type(typ), payload, maxAttempts)
 	})
-	directoryHandler := directory.NewHandler(directory.NewRepository(pool), cfg.LocalAccountUserID)
+	directoryHandler := directory.NewHandler(directory.NewRepository(pool), cfg.APIUserID)
 	authHandler := auth.NewHandler(auth.NewUserRepository(pool), auth.NewSessionRepository(pool), 24*time.Hour, auth.NewAttemptRepository(pool))
 	authHandler.SetCookieSecure(cfg.CookieSecure)
 
 	server := &http.Server{
 		Addr:              cfg.HTTPAddress,
-		Handler:           httpapi.NewRouter(health.NewHandler(pool, cfg.HealthTimeout), uploadHandler, downloadHandler, fileHandler, directoryHandler, authHandler, account.NewHandler(account.NewRepository(pool), cfg.LocalAccountUserID, providerAccountRefresher{providers: providers})),
+		Handler:           httpapi.NewRouter(health.NewHandler(pool, cfg.HealthTimeout), uploadHandler, downloadHandler, fileHandler, directoryHandler, authHandler, account.NewHandler(account.NewRepository(pool), cfg.APIUserID, providerAccountRefresher{providers: providers})),
 		ReadHeaderTimeout: cfg.HealthTimeout,
 	}
 

@@ -52,14 +52,19 @@ export class ProtonStorageBackend implements StorageBackend {
 
 	async upload(input: UploadObject): Promise<{ objectId: string; sizeBytes: number }> {
 		try {
+			debugRuntime('upload.start', input.accountId, input.sizeBytes);
 			const runtime = await this.runtimeFor(input.accountId);
 			const root = await runtime.client.getMyFilesRootFolder();
+			debugRuntime('upload.root', input.accountId);
 			const uploader = await runtime.client.getFileUploader(root.uid, input.objectId, {
 				mediaType: 'application/octet-stream',
 				expectedSize: input.sizeBytes
 			});
+			debugRuntime('upload.uploader', input.accountId);
 			const controller = await uploader.uploadFromStream(readableFromChunks(input.chunks), []);
+			debugRuntime('upload.stream-started', input.accountId);
 			const result = await controller.completion();
+			debugRuntime('upload.completed', input.accountId);
 			if (!result.nodeUid) throw new Error('Proton upload returned no node UID');
 			return { objectId: result.nodeUid, sizeBytes: input.sizeBytes };
 		} catch (error) {
@@ -124,6 +129,11 @@ export class ProtonStorageBackend implements StorageBackend {
 	}
 }
 
+function debugRuntime(operation: string, accountId: string, sizeBytes?: number): void {
+	if (process.env.SHARDRIVE_PROTON_DEBUG_RUNTIME !== '1') return;
+	console.error(JSON.stringify({ runtime: operation, accountId, ...(sizeBytes === undefined ? {} : { sizeBytes }) }));
+}
+
 function readableFromChunks(chunks: AsyncIterable<Buffer>): ReadableStream<Uint8Array> {
 	const iterator = chunks[Symbol.asyncIterator]();
 	return new ReadableStream<Uint8Array>({
@@ -182,7 +192,13 @@ class ByteQueue implements AsyncIterable<Buffer> {
 function normalizeError(operation: string, error: unknown): StorageBackendError {
 	if (error instanceof StorageBackendError) return error;
 	if (error instanceof ProtonAuthRequiredError) return new StorageBackendError('UNAUTHENTICATED', `Proton ${operation} requires authentication`, { cause: error });
+	if (isTimeoutError(error)) return new StorageBackendError('UNAVAILABLE', `Proton ${operation} timed out`, { cause: error });
 	const status = typeof error === 'object' && error !== null ? Reflect.get(error, 'status') ?? Reflect.get(error, 'statusCode') : undefined;
 	const code = status === 401 ? 'UNAUTHENTICATED' : status === 403 ? 'PERMISSION_DENIED' : status === 404 ? 'NOT_FOUND' : status === 429 ? 'RESOURCE_EXHAUSTED' : status === 503 ? 'UNAVAILABLE' : 'INTERNAL';
 	return new StorageBackendError(code, `Proton ${operation} failed`, { cause: error });
+}
+
+function isTimeoutError(error: unknown): boolean {
+	if (!(error instanceof Error)) return false;
+	return error.name === 'TimeoutError' || error.name === 'AbortError' || /timed out|timeout/i.test(error.message);
 }

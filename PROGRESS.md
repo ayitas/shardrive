@@ -14,6 +14,12 @@ only; the Proton profile is opt-in. Multi-account is the next product slice,
 starting with two runtime-configured Proton accounts before expanding toward
 the 5–10 account target.
 
+Pool boundary decision: LocalProvider and Proton accounts are never combined in
+the default placement pool. LocalProvider remains the deterministic
+development/test provider; production multi-account work targets a Proton-only
+pool. A future explicit provider-pool selection feature may support other
+deployments without changing this default.
+
 The repository Makefile is now aligned with the current product workflow: it
 includes frontend and adapter checks/tests, Compose config validation, the
 opt-in Proton Compose profile, and the Firefox Proton browser gate. The new
@@ -136,6 +142,22 @@ review found no additional safe dead code: the Proton protocol boundary,
 runtime probes, and adapter tests are all referenced by the current build,
 validation, or recovery workflow and remain intentionally present.
 
+The Firefox Proton gate exposed a stalled-upload observability bug: the Proton
+SDK supplies a storage timeout longer than the adapter's configured runtime
+timeout, so the previous fallback did not apply to upload requests. The
+adapter now clamps every SDK HTTP request timeout to
+`SHARDRIVE_PROTON_HTTP_TIMEOUT_MS`, ensuring a stalled Proton request returns
+an error to the Go API and browser instead of remaining indefinitely in
+`UPLOADING`.
+
+The follow-up Firefox gate confirmed the failure is now surfaced as `FAILED`
+with `no storage account can accept this chunk`; it no longer leaves the UI
+silently stuck. The live Proton account was marked `OFFLINE` with
+`provider_unavailable` by its health check, while API, worker, adapter, and
+PostgreSQL containers remained healthy and API-to-adapter DNS resolved. The
+full upload/download gate therefore remains blocked by Proton account health,
+not by the browser queue or frontend rendering.
+
 Phase 2A now has an adapter-local encrypted session vault foundation in
 `apps/proton-adapter`. It uses AES-256-GCM, authenticated account IDs, atomic
 0600 file writes, restart recovery, and rejects path traversal. It deliberately
@@ -163,6 +185,7 @@ Read `AGENTS.md` before doing any work.
 - [x] No Reed-Solomon in V1
 - [x] No Redis requirement in V1
 - [x] PostgreSQL is source of truth
+- [x] LocalProvider and Proton are not mixed in the default placement pool
 
 Do not change these silently.
 
@@ -667,6 +690,8 @@ Status: NEXT — preparation after the completed one-account Proton product gate
 Start with two independently configured Proton sessions and preserve the
 provider-neutral core. The 5–10 account target is a scale/configuration goal,
 not a reason to skip the two-account correctness slice.
+LocalProvider remains available for development and acceptance tests but is
+excluded from this pool.
 
 - [ ] runtime account management for at least two Proton accounts
 - [ ] two-account connect/list/refresh UI and API coverage
@@ -1406,6 +1431,24 @@ and exposed with server-backed `Resume` and `Cancel upload` actions. This was
 verified in Firefox against two existing `proton-drive` sessions at 3/4
 chunks; no upload data was deleted while diagnosing the issue. Backend tests,
 `go vet ./...`, frontend check/build, and the Docker frontend rebuild passed.
+
+The Proton-only runtime check exposed two integration gaps and both are fixed:
+`SHARDRIVE_LOCAL_ACCOUNT_USER_ID` was incorrectly also used as the API's fixed
+development user identity, and the upload service rejected Proton's legitimate
+remote node ID because it differed from Shardrive's pre-upload opaque UUID. The
+API now uses separate `SHARDRIVE_API_USER_ID` and LocalProvider provisioning
+configuration, while chunk mappings persist the provider-returned remote ID
+and orphan cleanup uses that ID. Ten local accounts were disabled without
+deleting their data; the Proton account remains active. A one-megabyte upload,
+completion, download, and SHA-256 comparison passed, followed by the full
+Firefox Phase 1 upload/download/delete gate (`1 passed`).
+
+Live inspection then found that parallel uploads against one Proton SDK runtime
+could leave requests stalled after the first chunk. The active Proton account
+was reduced to one upload worker, the adapter was restarted to release stale
+requests, and the browser resumed to 3/4 chunks. New Proton account creation
+now defaults to one upload worker as well; cross-account parallelism remains a
+Phase 3 concern.
 
 The supported local session setup is now executable as
 `npm run proton:session:import`. It reads the official CLI OS keychain entry,

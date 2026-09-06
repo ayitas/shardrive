@@ -12,6 +12,7 @@ func TestLoad(t *testing.T) {
 	t.Setenv("SHARDRIVE_DB_HEALTH_TIMEOUT", "500ms")
 	t.Setenv("SHARDRIVE_SHUTDOWN_TIMEOUT", "4s")
 	t.Setenv("SHARDRIVE_LOCAL_STORAGE_ROOT", "/tmp/shardrive-test-storage")
+	t.Setenv("SHARDRIVE_API_USER_ID", "00000000-0000-0000-0000-000000000002")
 	t.Setenv("SHARDRIVE_LOCAL_ACCOUNT_USER_ID", "00000000-0000-0000-0000-000000000001")
 	t.Setenv("SHARDRIVE_LOCAL_ACCOUNT_COUNT", "7")
 	t.Setenv("SHARDRIVE_LOCAL_ACCOUNT_QUOTA_BYTES", "2048")
@@ -33,6 +34,9 @@ func TestLoad(t *testing.T) {
 	}
 	if cfg.LocalStorageRoot != "/tmp/shardrive-test-storage" || cfg.LocalAccountCount != 7 || cfg.LocalAccountQuotaBytes != 2048 || cfg.LocalMaxUploadWorkers != 4 || cfg.LocalMaxDownloadWorkers != 3 {
 		t.Fatalf("unexpected local storage configuration: %+v", cfg)
+	}
+	if cfg.APIUserID != "00000000-0000-0000-0000-000000000002" {
+		t.Fatalf("APIUserID = %q", cfg.APIUserID)
 	}
 	if cfg.ChunkSizeBytes != 1024 || cfg.UploadSessionLifetime != 2*time.Hour || cfg.GlobalUploadLimit != 8 {
 		t.Fatalf("unexpected upload configuration: %+v", cfg)

@@ -36,7 +36,9 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	value, err := h.repository.Create(r.Context(), CreateParams{
 		UserID: userID, Name: strings.TrimSpace(request.Name), Provider: request.Provider,
-		TotalBytes: 0, MaxUploadWorkers: 2, MaxDownloadWorkers: 1,
+		// Keep one in-flight upload per Proton account until the adapter proves
+		// safe bounded parallelism for the official SDK runtime.
+		TotalBytes: 0, MaxUploadWorkers: 1, MaxDownloadWorkers: 1,
 		CredentialRef: &request.CredentialRef,
 	})
 	if err != nil {

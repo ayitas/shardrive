@@ -12,11 +12,21 @@ const expectedCommit = process.env.PROTON_SDK_EXPECTED_COMMIT ?? 'c8d03244938a6b
 const masterKey = await loadMasterKey();
 const sessionRoot = process.env.SHARDRIVE_PROTON_SESSION_ROOT;
 const grpcAddress = process.env.SHARDRIVE_PROTON_GRPC_ADDRESS ?? '0.0.0.0:50051';
+const protonHttpTimeoutMs = Number(process.env.SHARDRIVE_PROTON_HTTP_TIMEOUT_MS ?? '60000');
 const protoIncludeDir = path.dirname(require.resolve('google-proto-files/google/protobuf/empty.proto'));
 
 if (!sourceDir) throw new Error('PROTON_SDK_SOURCE_DIR must point to the official Proton SDK source tree');
 if (!masterKey) throw new Error('SHARDRIVE_PROTON_MASTER_KEY_B64 is required');
 if (!sessionRoot) throw new Error('SHARDRIVE_PROTON_SESSION_ROOT is required');
+if (!Number.isSafeInteger(protonHttpTimeoutMs) || protonHttpTimeoutMs <= 0) throw new Error('SHARDRIVE_PROTON_HTTP_TIMEOUT_MS must be a positive integer');
+
+// The SDK assigns a much longer timeout to storage operations (currently up
+// to ten minutes). Keep the adapter's operational bound authoritative so a
+// stalled Proton request returns to the Go API and browser instead of leaving
+// an upload permanently stuck in UPLOADING.
+const boundedRequestTimeout = (requested) => requested === undefined
+  ? protonHttpTimeoutMs
+  : Math.min(requested, protonHttpTimeoutMs);
 // The generated Bun entrypoint reads the validated key from its environment.
 // This assignment only propagates the already-loaded secret to the child
 // process; it is never logged or written to the bundle.
@@ -94,8 +104,8 @@ async function createRuntime(accountId: string) {
   const client = new ProtonDriveClient({
     config: { baseUrl: 'drive-api.proton.me', clientUid: 'shardrive-runtime-probe' },
     httpClient: {
-      fetchJson: (request) => apiClient.authenticatedRequest(request.url, { method: request.method, headers: request.headers, ...(request.json !== undefined ? { json: request.json } : {}), ...(request.body !== undefined && request.json === undefined ? { body: request.body } : {}), timeout: request.timeoutMs, signal: request.signal, throwHttpErrors: false }),
-      fetchBlob: (request) => apiClient.authenticatedRequest(request.url, { method: request.method, headers: request.headers, body: request.body, timeout: request.timeoutMs, signal: request.signal, throwHttpErrors: false }),
+      fetchJson: (request) => apiClient.authenticatedRequest(request.url, { method: request.method, headers: request.headers, ...(request.json !== undefined ? { json: request.json } : {}), ...(request.body !== undefined && request.json === undefined ? { body: request.body } : {}), timeout: boundedRequestTimeout(request.timeoutMs), signal: request.signal, throwHttpErrors: false }),
+      fetchBlob: (request) => apiClient.authenticatedRequest(request.url, { method: request.method, headers: request.headers, body: request.body, timeout: boundedRequestTimeout(request.timeoutMs), signal: request.signal, throwHttpErrors: false }),
     },
     entitiesCache: new MemoryCache(), cryptoCache: new MemoryCache(), telemetry, openPGPCryptoModule: new OpenPGPCryptoWithCryptoProxy(CryptoProxy),
     account: { getOwnPrimaryAddress: () => addresses.getOwnPrimaryAddress(), getOwnAddresses: () => addresses.getOwnAddresses(), getOwnAddress: (value: string) => addresses.getOwnAddress(value), hasProtonAccount: (value: string) => addresses.hasProtonAccount(value), getPublicKeys: (value: string, forceRefresh?: boolean) => addresses.getPublicKeys(value, forceRefresh) },
