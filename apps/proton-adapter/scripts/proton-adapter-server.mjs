@@ -83,12 +83,12 @@ async function createRuntime(accountId: string) {
   if (!snapshot) throw new ProtonAuthRequiredError(accountId);
   const credentials = new Credentials(snapshot as any);
   const logger = { debug() {}, info() {}, warn() {}, error() {} };
-  const apiClient = new ApiClient({ baseUrl: 'drive-api.proton.me', appVersion: 'shardrive-proton-adapter', credentials, logger, headers: { 'x-pm-drive-sdk-version': '0.21.0' } });
+  const apiClient = new ApiClient({ baseUrl: 'drive-api.proton.me', appVersion: 'cli-drive@0.8.0', credentials, logger, headers: { 'x-pm-drive-sdk-version': '0.21.0' } });
   CryptoApi.init({}); CryptoProxy.setEndpoint(new CryptoApi(), (endpoint) => endpoint.clearKeyStore());
   const { addresses, srp, accountApi } = await initAccount({ authClientId: 'cli-drive', apiClient, credentials, cryptoProxy: CryptoProxy, logger });
   const telemetry = new Telemetry({ logHandlers: [], metricHandlers: [] });
   const client = new ProtonDriveClient({
-    config: { baseUrl: 'drive-api.proton.me', clientUid: 'shardrive-proton-adapter' },
+    config: { baseUrl: 'drive-api.proton.me', clientUid: 'shardrive-runtime-probe' },
     httpClient: {
       fetchJson: (request) => apiClient.authenticatedRequest(request.url, { method: request.method, headers: request.headers, ...(request.json !== undefined ? { json: request.json } : {}), ...(request.body !== undefined && request.json === undefined ? { body: request.body } : {}), timeout: request.timeoutMs, signal: request.signal, throwHttpErrors: false }),
       fetchBlob: (request) => apiClient.authenticatedRequest(request.url, { method: request.method, headers: request.headers, body: request.body, timeout: request.timeoutMs, signal: request.signal, throwHttpErrors: false }),
@@ -99,14 +99,25 @@ async function createRuntime(accountId: string) {
   });
   return {
     client,
-    health: async () => { await client.getMyFilesRootFolder(); },
+    health: async () => {
+      try { await client.getMyFilesRootFolder(); }
+      catch (error) { reportRuntimeFailure('health', error); throw error; }
+    },
     usage: async () => {
-      const users = await accountApi.users();
-      const user = users.User;
-      if (!user) throw new Error('Proton account response did not include user quota');
-      return { totalBytes: user.MaxSpace, usedBytes: user.UsedSpace, freeBytes: Math.max(0, user.MaxSpace - user.UsedSpace) };
+      try {
+        const users = await accountApi.users();
+        const user = users.User;
+        if (!user) throw new Error('Proton account response did not include user quota');
+        return { totalBytes: user.MaxSpace, usedBytes: user.UsedSpace, freeBytes: Math.max(0, user.MaxSpace - user.UsedSpace) };
+      } catch (error) { reportRuntimeFailure('usage', error); throw error; }
     }
   };
+}
+
+function reportRuntimeFailure(operation: string, error: unknown) {
+  if (process.env.SHARDRIVE_PROTON_DEBUG_RUNTIME !== '1') return;
+  const value = error && typeof error === 'object' ? error as Record<string, unknown> : {};
+  console.error(JSON.stringify({ runtimeFailure: operation, name: error instanceof Error ? error.name : 'unknown', code: value.code, status: value.status ?? value.statusCode }));
 }
 
 const adapter = await startStorageAdapter(new ProtonStorageBackend(runtimeFor), process.env.SHARDRIVE_PROTON_GRPC_ADDRESS ?? '0.0.0.0:50051');

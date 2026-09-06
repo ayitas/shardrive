@@ -1291,6 +1291,14 @@ not embedded in the generated entry source or bundle. Adapter startup logs only
 the runtime phase and bound address; session payloads, keys, tokens, and Proton
 node IDs remain unprinted.
 
+The first real cross-language one-account gate now passes. A fresh encrypted
+session vault was populated from the already-authenticated official CLI OS
+keychain without printing its snapshot. The adapter started on localhost, the
+Go `grpcprovider` performed health and usage calls, uploaded a generated object,
+downloaded it through server streaming, matched SHA-256, and deleted the
+remote object in cleanup. No credential, access token, or remote object ID was
+printed by the gate.
+
 Additional verification:
 
 ```text
@@ -1299,13 +1307,14 @@ npm run build
 npm test
 npm run sdk:smoke
 timeout 10s env PROTON_SDK_SOURCE_DIR=/tmp/shardrive-proton-sdk-source SHARDRIVE_PROTON_MASTER_KEY_B64=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= SHARDRIVE_PROTON_SESSION_ROOT=/tmp/shardrive-adapter-smoke-sessions SHARDRIVE_PROTON_GRPC_ADDRESS=127.0.0.1:0 npm run proton:adapter
+SHARDRIVE_LIVE_GRPC_ADDRESS=127.0.0.1:50051 SHARDRIVE_LIVE_ACCOUNT_ID=account-1 GOCACHE=/tmp/shardrive-go-build GOMODCACHE=/tmp/shardrive-go-mod go test ./internal/storage/grpcprovider -run TestLiveProtonAdapterTransferGate -count=1 -v
 ```
 
-Next three tasks are: prove Go-to-TypeScript gRPC upload/download with one
-configured Proton account, prove adapter restart/session recovery across that
-transfer gate, and only then expose Proton account provisioning in the account
-dashboard. The first task is now complete; the next task is the real
-cross-language transfer gate.
+Next three tasks are: prove adapter restart/session recovery across the live
+transfer gate, add account/provider health state synchronization to the Go
+account repository for Proton failures, and only then expose Proton account
+provisioning in the account dashboard. The cross-language transfer task is now
+complete.
 ```
 
 All commands completed successfully; no blockers remain for this milestone.
