@@ -568,7 +568,14 @@ Phase 2A implementation slice:
 - [x] file permissions and account-ID path safety tests
 - [x] exact npm SDK package pin (`@protontech/drive-sdk@0.21.0`)
 - [x] public-export bundle smoke test
-- [ ] Proton SDK client construction and authentication handoff
+- [x] injected Proton SDK client factory and auth-required state
+- [ ] live Proton session bootstrap and SDK client construction
+
+Factory compatibility note: SDK 0.21.0's declaration graph currently pulls
+TypeScript source from its crypto peer and fails this package's strict compiler
+inside `node_modules`. The factory therefore uses a structural generic seam;
+the bundled SDK runtime remains pinned and smoke-tested. Revisit this when the
+SDK publishes declaration-compatible types.
 
 Phase 2B boundary runtime slice:
 

@@ -45,6 +45,19 @@ No password-over-gRPC flow is permitted. The session recovery path must be
 proven with a real one-account test before this adapter is connected to the
 placement engine.
 
+`src/proton-client-factory.ts` now codifies this handoff: a session provider
+loads account-scoped SDK constructor parameters, the factory returns
+`AUTH_REQUIRED`-equivalent `ProtonAuthRequiredError` when no session exists,
+and the SDK constructor is injected so the bundled runtime is explicit. The
+factory test uses no Proton credentials or network calls.
+
+The factory intentionally uses a structural generic contract instead of
+importing the SDK's declaration graph into the adapter compiler. SDK 0.21.0's
+public declaration entry currently pulls TypeScript source from its crypto peer,
+which violates this package's strict compiler settings with errors inside
+`node_modules`. The bundled runtime remains pinned and smoke-tested; this seam
+can adopt official SDK types once that declaration compatibility is fixed.
+
 The initial gRPC boundary is defined in [`proto/storage.proto`](../../proto/storage.proto):
 one metadata frame plus bounded data frames for upload, bounded server frames
 for download, and unary delete/stat/usage/health calls. The adapter receives
