@@ -85,3 +85,21 @@ chunk forwarding, and translation from adapter errors to gRPC status codes.
 Its `StorageBackend` interface is deliberately separate from Proton SDK types;
 the current integration test uses an in-memory fake backend and proves the
 wire contract without claiming a Proton connection.
+
+## Runtime decision after official-source verification
+
+The official repository source at commit
+`c8d03244938a6b4d107c755df8904d7d971ed1c2` was installed in a temporary
+checkout with Bun. Its internal `client/js` and
+`incubating/account/js` workspaces were installed, and the official CLI bundle
+completed successfully (`1067 modules`, `12.92 MB`). This confirms that the
+SDK, account runtime, and crypto dependencies can be bundled together from the
+same pinned source tree.
+
+The CLI remains unsuitable as Shardrive's provider implementation: its upload
+and download commands require local filesystem paths and do not expose the
+provider-neutral streaming object contract. The next live spike must therefore
+reuse the pinned official source/runtime pieces in a dedicated adapter entry
+point, not invoke the CLI as a file-transfer shim. Until that entry point is
+implemented and tested, this package must not claim Proton upload/download
+support.

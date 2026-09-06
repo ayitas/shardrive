@@ -586,6 +586,14 @@ inside `node_modules`. The factory therefore uses a structural generic seam;
 the bundled SDK runtime remains pinned and smoke-tested. Revisit this when the
 SDK publishes declaration-compatible types.
 
+The pinned official source tree was installed in a temporary checkout with Bun
+at commit `c8d03244938a6b4d107c755df8904d7d971ed1c2`. After installing the
+`client/js` and `incubating/account/js` workspace dependencies, the official
+CLI source bundle completed successfully: 1067 modules, 12.92 MB. This proves
+the account/crypto/Drive SDK runtime can be bundled from one source snapshot.
+It does not prove a Shardrive transfer because the CLI commands require local
+paths; the CLI will not be used as a streaming provider shim.
+
 Phase 2B boundary runtime slice:
 
 - [x] Node gRPC runtime loads the provider-neutral proto contract
