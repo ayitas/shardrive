@@ -578,6 +578,7 @@ Phase 2A implementation slice:
 - [x] injected Proton SDK client factory and auth-required state
 - [x] validated Proton CLI session snapshot importer
 - [x] imported and recovered one real CLI session into the encrypted vault
+- [x] source-pinned live read-only ProtonDriveClient construction probe
 - [ ] live Proton session bootstrap and SDK client construction
 
 Factory compatibility note: SDK 0.21.0's declaration graph currently pulls
@@ -1217,6 +1218,22 @@ Both configured projects passed:
 chromium: passed
 firefox: passed
 2 passed (9.4s)
+
+Proton runtime probe verification in this session:
+
+```text
+PROTON_SDK_SOURCE_DIR=/tmp/shardrive-proton-sdk-source npm run proton:runtime:probe
+npm run check
+npm run build
+npm test
+npm run sdk:smoke
+```
+
+The source-pinned probe bundled 225 modules, constructed `ProtonDriveClient`,
+and read the My Files root successfully with HTTP 200. Adapter checks passed
+with 9 tests, and the public SDK bundle smoke passed. This is still read-only
+runtime proof; `ProtonStorageBackend` upload/download/delete/stat/usage/health
+remains the next implementation gate.
 ```
 
 All commands completed successfully; no blockers remain for this milestone.

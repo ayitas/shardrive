@@ -103,3 +103,10 @@ reuse the pinned official source/runtime pieces in a dedicated adapter entry
 point, not invoke the CLI as a file-transfer shim. Until that entry point is
 implemented and tested, this package must not claim Proton upload/download
 support.
+
+The reproducible read-only runtime probe is available as
+`npm run proton:runtime:probe`. Set `PROTON_SDK_SOURCE_DIR` to the checked-out
+official source tree at the pinned commit. The probe bundles the SDK,
+account, and crypto runtime, reads the existing OS-secret-store session,
+constructs a `ProtonDriveClient`, and reads only the My Files root metadata.
+It prints no credential, token, filename, or node ID.
