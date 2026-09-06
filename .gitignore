@@ -43,6 +43,7 @@ apps/frontend/playwright-report/
 apps/frontend/test-results/
 apps/proton-adapter/node_modules/
 apps/proton-adapter/dist/
+apps/proton-adapter/.sdk-smoke-*/
 
 # Editor/IDE
 # .idea/

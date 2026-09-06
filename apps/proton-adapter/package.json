@@ -5,15 +5,18 @@
   "scripts": {
     "check": "tsc --noEmit",
     "build": "tsc",
-    "test": "tsx --test test/**/*.test.ts"
+    "test": "tsx --test test/**/*.test.ts",
+    "sdk:smoke": "node scripts/sdk-bundle-smoke.mjs"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.13.4",
     "@grpc/proto-loader": "^0.7.13",
+    "@protontech/drive-sdk": "0.21.0",
     "google-proto-files": "^4.0.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
+    "esbuild": "0.28.2",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0"
   }

@@ -16,13 +16,17 @@ checksum, delete, quota, health, and provider-neutral error acceptance gate.
 
 ## Phase 2A decision record
 
-The current investigation uses the official `ProtonDriveApps/sdk` `main`
-branch as the source reference. Its JavaScript package manifest currently
-identifies `@protontech/drive-sdk` as version `0.0.1`; the JavaScript changelog
-currently documents the `js/v0.20.0` release. These are investigation
-references, not yet a production dependency pin. Before the first live spike,
-record the exact immutable commit and the resolved package tarball in this
-document and in the adapter lockfile.
+The adapter now pins the published npm package `@protontech/drive-sdk@0.21.0`
+in `package.json` and `package-lock.json`. The current official repository
+`main` reference was recorded as commit
+`c8d03244938a6b4d107c755df8904d7d971ed1c2`; this commit/package relationship
+must still be confirmed before calling the live spike reproducible.
+
+The package's direct Node ESM entrypoint currently fails to resolve its own
+extensionless internal imports. The adapter therefore treats bundling as a
+required runtime build step for SDK code; `npm run sdk:smoke` bundles only the
+public exports and executes the result successfully. Do not import the SDK
+directly from an unbundled Node entrypoint.
 
 The SDK does not provide authentication, login, session management, or a user
 address provider. The intended Shardrive handoff is therefore:

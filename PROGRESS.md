@@ -518,6 +518,13 @@ while the source package manifest still identifies version `0.0.1`; this is not
 yet a sufficient immutable production pin. The live spike must record the
 resolved npm tarball and the exact upstream commit together.
 
+The published npm package was then checked directly on 2026-09-06: npm reports
+`@protontech/drive-sdk@0.21.0`, which is now pinned exactly in the adapter lockfile.
+The current upstream `main` ref resolves to
+`c8d03244938a6b4d107c755df8904d7d971ed1c2`. The package was bundle-smoke-tested
+successfully; direct unbundled Node ESM import is not usable because the package
+entrypoint contains extensionless internal imports.
+
 Findings:
 
 - The TypeScript SDK exposes a public `ProtonDriveClient` with high-level node,
@@ -559,6 +566,8 @@ Phase 2A implementation slice:
 - [x] adapter-local AES-256-GCM session vault
 - [x] atomic encrypted session persistence with restart recovery test
 - [x] file permissions and account-ID path safety tests
+- [x] exact npm SDK package pin (`@protontech/drive-sdk@0.21.0`)
+- [x] public-export bundle smoke test
 - [ ] Proton SDK client construction and authentication handoff
 
 Phase 2B boundary runtime slice:
@@ -573,7 +582,7 @@ Phase 2B boundary runtime slice:
 
 Spike exit criteria:
 
-- [ ] select and pin a tested SDK commit/package snapshot
+- [ ] confirm the immutable upstream commit/package relationship
 - [ ] document the supported auth/session handoff into the SDK
 - [ ] define encrypted credential/session persistence through `credential_ref`
 - [ ] prove streaming upload and download through the adapter
