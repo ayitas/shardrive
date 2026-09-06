@@ -121,6 +121,12 @@ boundary and ignored local build/configuration artifacts remain intentionally
 because they are part of the planned Phase 2 boundary or local development
 state, not dead tracked code.
 
+Phase 2A now has an adapter-local encrypted session vault foundation in
+`apps/proton-adapter`. It uses AES-256-GCM, authenticated account IDs, atomic
+0600 file writes, restart recovery, and rejects path traversal. It deliberately
+does not include Proton authentication or SDK types until the immutable SDK
+snapshot and live one-account test environment are available.
+
 Read `AGENTS.md` before doing any work.
 
 ## Locked Decisions
@@ -546,6 +552,14 @@ the adapter owns authentication and encrypted session persistence, PostgreSQL
 stores only `credential_ref`, and no password or provider token crosses gRPC.
 This is a design decision only; session recovery remains unproven until a
 real one-account test environment is available.
+
+Phase 2A implementation slice:
+
+- [x] adapter TypeScript package/toolchain scaffold
+- [x] adapter-local AES-256-GCM session vault
+- [x] atomic encrypted session persistence with restart recovery test
+- [x] file permissions and account-ID path safety tests
+- [ ] Proton SDK client construction and authentication handoff
 
 Spike exit criteria:
 

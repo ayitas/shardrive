@@ -41,6 +41,8 @@ apps/frontend/.svelte-kit/
 apps/frontend/build/
 apps/frontend/playwright-report/
 apps/frontend/test-results/
+apps/proton-adapter/node_modules/
+apps/proton-adapter/dist/
 
 # Editor/IDE
 # .idea/
