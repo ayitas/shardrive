@@ -1299,6 +1299,11 @@ downloaded it through server streaming, matched SHA-256, and deleted the
 remote object in cleanup. No credential, access token, or remote object ID was
 printed by the gate.
 
+The restart/session-recovery gate also passes. The adapter was stopped after
+the first live transfer, then started again with the same encrypted vault and
+master key without re-importing or logging in. A second Go-to-gRPC-to-Proton
+transfer passed health, upload, download SHA-256, and remote cleanup.
+
 Additional verification:
 
 ```text
@@ -1308,13 +1313,14 @@ npm test
 npm run sdk:smoke
 timeout 10s env PROTON_SDK_SOURCE_DIR=/tmp/shardrive-proton-sdk-source SHARDRIVE_PROTON_MASTER_KEY_B64=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= SHARDRIVE_PROTON_SESSION_ROOT=/tmp/shardrive-adapter-smoke-sessions SHARDRIVE_PROTON_GRPC_ADDRESS=127.0.0.1:0 npm run proton:adapter
 SHARDRIVE_LIVE_GRPC_ADDRESS=127.0.0.1:50051 SHARDRIVE_LIVE_ACCOUNT_ID=account-1 GOCACHE=/tmp/shardrive-go-build GOMODCACHE=/tmp/shardrive-go-mod go test ./internal/storage/grpcprovider -run TestLiveProtonAdapterTransferGate -count=1 -v
+# The live command above was executed once before and once after an adapter
+# restart using the same encrypted session vault.
 ```
 
-Next three tasks are: prove adapter restart/session recovery across the live
-transfer gate, add account/provider health state synchronization to the Go
-account repository for Proton failures, and only then expose Proton account
-provisioning in the account dashboard. The cross-language transfer task is now
-complete.
+Next three tasks are: add account/provider health state synchronization to the
+Go account repository for Proton failures, wire one configured Proton account
+into the product account lifecycle, and only then expand to multi-account
+placement. The cross-language and restart/session-recovery gates are complete.
 ```
 
 All commands completed successfully; no blockers remain for this milestone.
