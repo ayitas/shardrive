@@ -14,11 +14,14 @@ import {
 } from './storage-backend.js';
 
 const MAX_DATA_FRAME_BYTES = 4 * 1024 * 1024;
-const PROTO_PATH = resolve(dirname(fileURLToPath(import.meta.url)), '../../../proto/storage.proto');
 const require = createRequire(import.meta.url);
 
+function protoPath(): string {
+	return process.env.SHARDRIVE_PROTO_PATH ?? resolve(dirname(fileURLToPath(import.meta.url)), '../../../proto/storage.proto');
+}
+
 export async function loadStoragePackageDefinition(): Promise<protoLoader.PackageDefinition> {
-	return protoLoader.load(PROTO_PATH, {
+	return protoLoader.load(protoPath(), {
 		keepCase: true,
 		longs: Number,
 		enums: String,
@@ -30,7 +33,7 @@ export async function loadStoragePackageDefinition(): Promise<protoLoader.Packag
 
 export function createStorageAdapterServer(backend: StorageBackend): grpc.Server {
 	const server = new grpc.Server();
-	const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
+	const packageDefinition = protoLoader.loadSync(protoPath(), {
 		keepCase: true,
 		longs: Number,
 		enums: String,
@@ -299,6 +302,9 @@ function toGrpcStatus(code: StorageErrorCode): grpc.status {
 }
 
 function requireGoogleProto(name: string): string {
+	if (process.env.SHARDRIVE_PROTO_INCLUDE_DIR) {
+		return resolve(process.env.SHARDRIVE_PROTO_INCLUDE_DIR, name);
+	}
 	return require.resolve(`google-proto-files/${name}`);
 }
 

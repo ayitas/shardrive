@@ -1277,10 +1277,35 @@ GOCACHE=/tmp/shardrive-go-build GOMODCACHE=/tmp/shardrive-go-mod go test ./...
 GOCACHE=/tmp/shardrive-go-build GOMODCACHE=/tmp/shardrive-go-mod go vet ./...
 ```
 
-Next three tasks are: add a real adapter process entrypoint around the pinned
-runtime/session factory, prove Go-to-TypeScript gRPC upload/download with one
-configured Proton account, and only then expose Proton account provisioning in
-the account dashboard.
+The adapter process entrypoint is now implemented as `npm run proton:adapter`.
+It validates the pinned SDK commit, requires a 32-byte base64 master key and
+session root, bundles the official SDK, loads the encrypted `FileSessionStore`,
+constructs one cached Proton runtime per account ID, and starts the existing
+gRPC `StorageAdapter` server. Protobuf paths are injected explicitly because
+the bundle executes from the SDK workspace; gRPC/proto-loader remain external
+Node dependencies. A dummy-key startup smoke test reached a live ephemeral
+gRPC listener without contacting Proton; it was terminated by the test timeout.
+
+The master key is read from the child process environment at runtime and is
+not embedded in the generated entry source or bundle. Adapter startup logs only
+the runtime phase and bound address; session payloads, keys, tokens, and Proton
+node IDs remain unprinted.
+
+Additional verification:
+
+```text
+npm run check
+npm run build
+npm test
+npm run sdk:smoke
+timeout 10s env PROTON_SDK_SOURCE_DIR=/tmp/shardrive-proton-sdk-source SHARDRIVE_PROTON_MASTER_KEY_B64=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= SHARDRIVE_PROTON_SESSION_ROOT=/tmp/shardrive-adapter-smoke-sessions SHARDRIVE_PROTON_GRPC_ADDRESS=127.0.0.1:0 npm run proton:adapter
+```
+
+Next three tasks are: prove Go-to-TypeScript gRPC upload/download with one
+configured Proton account, prove adapter restart/session recovery across that
+transfer gate, and only then expose Proton account provisioning in the account
+dashboard. The first task is now complete; the next task is the real
+cross-language transfer gate.
 ```
 
 All commands completed successfully; no blockers remain for this milestone.

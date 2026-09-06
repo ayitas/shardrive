@@ -7,7 +7,8 @@
     "build": "tsc",
     "test": "tsx --test test/**/*.test.ts",
     "sdk:smoke": "node scripts/sdk-bundle-smoke.mjs",
-    "proton:runtime:probe": "node scripts/proton-runtime-probe.mjs"
+    "proton:runtime:probe": "node scripts/proton-runtime-probe.mjs",
+    "proton:adapter": "node scripts/proton-adapter-server.mjs"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.13.4",

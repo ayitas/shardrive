@@ -130,5 +130,26 @@ other request details are not written to stdout.
 for the official SDK shape. It uses the SDK's uploader/downloader streams,
 performs Proton trash-then-permanent-delete, maps node metadata to Shardrive
 stat results, and delegates account health/quota to the runtime factory. Its
-10-test adapter suite uses a fake SDK runtime; live transfer is intentionally
-not claimed until the source-pinned runtime factory is wired to this backend.
+10-test adapter suite uses a fake SDK runtime; the source-pinned runtime
+factory is now used by the adapter process entrypoint below.
+
+## Adapter process entrypoint
+
+`npm run proton:adapter` builds and starts the real gRPC adapter process. It
+requires the pinned SDK source, an encrypted session directory, and a 32-byte
+master key supplied as base64:
+
+```text
+PROTON_SDK_SOURCE_DIR=/path/to/proton-sdk \
+SHARDRIVE_PROTON_MASTER_KEY_B64=<base64-32-byte-key> \
+SHARDRIVE_PROTON_SESSION_ROOT=/var/lib/shardrive/proton-sessions \
+SHARDRIVE_PROTON_GRPC_ADDRESS=0.0.0.0:50051 \
+npm run proton:adapter
+```
+
+The entrypoint bundles the official SDK from the pinned source tree, keeps the
+gRPC/protobuf packages external to the SDK bundle, loads sessions through
+`FileSessionStore`, and starts `StorageAdapter`. It does not print session
+contents or credentials. The current session payload is the validated CLI
+snapshot imported into the encrypted vault; an account without a session fails
+with an authentication error at the provider boundary.

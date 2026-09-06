@@ -1,3 +1,4 @@
+import { ProtonAuthRequiredError } from './proton-client-factory.js';
 import { StorageBackendError, type AccountRequest, type ObjectInfo, type ObjectRequest, type StorageBackend, type StorageUsage, type UploadObject } from './storage-backend.js';
 
 export interface ProtonNode {
@@ -180,6 +181,7 @@ class ByteQueue implements AsyncIterable<Buffer> {
 
 function normalizeError(operation: string, error: unknown): StorageBackendError {
 	if (error instanceof StorageBackendError) return error;
+	if (error instanceof ProtonAuthRequiredError) return new StorageBackendError('UNAUTHENTICATED', `Proton ${operation} requires authentication`, { cause: error });
 	const status = typeof error === 'object' && error !== null ? Reflect.get(error, 'status') ?? Reflect.get(error, 'statusCode') : undefined;
 	const code = status === 401 ? 'UNAUTHENTICATED' : status === 403 ? 'PERMISSION_DENIED' : status === 404 ? 'NOT_FOUND' : status === 429 ? 'RESOURCE_EXHAUSTED' : status === 503 ? 'UNAVAILABLE' : 'INTERNAL';
 	return new StorageBackendError(code, `Proton ${operation} failed`, { cause: error });
