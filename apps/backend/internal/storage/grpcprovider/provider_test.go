@@ -2,6 +2,7 @@ package grpcprovider
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net"
 	"strings"
@@ -10,7 +11,9 @@ import (
 	"github.com/ayitas/shardrive/apps/backend/internal/account"
 	"github.com/ayitas/shardrive/apps/backend/internal/storage"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 )
 
@@ -72,6 +75,17 @@ func TestProviderStreamsAgainstProtoService(t *testing.T) {
 	}
 	if err := provider.Health(context.Background(), storageAccount); err != nil {
 		t.Fatalf("Health: %v", err)
+	}
+}
+
+func TestMapErrorDistinguishesRequiredSession(t *testing.T) {
+	err := mapError(status.Error(codes.Unauthenticated, "Proton operation requires authentication"))
+	if !errors.Is(err, storage.ErrAuthenticationRequired) {
+		t.Fatalf("mapped error = %v, want authentication required", err)
+	}
+	failed := mapError(status.Error(codes.Unauthenticated, "access token rejected"))
+	if !errors.Is(failed, storage.ErrAuthentication) {
+		t.Fatalf("mapped error = %v, want authentication failed", failed)
 	}
 }
 

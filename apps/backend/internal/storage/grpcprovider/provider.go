@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/ayitas/shardrive/apps/backend/internal/account"
@@ -215,7 +216,13 @@ func mapError(err error) error {
 		return fmt.Errorf("grpc provider: %w: %v", storage.ErrInvalidRequest, err)
 	case codes.NotFound:
 		return fmt.Errorf("grpc provider: %w: %v", storage.ErrObjectNotFound, err)
-	case codes.Unauthenticated, codes.PermissionDenied:
+	case codes.Unauthenticated:
+		message := strings.ToLower(status.Convert(err).Message())
+		if strings.Contains(message, "requires authentication") || strings.Contains(message, "session is required") {
+			return fmt.Errorf("grpc provider: %w: %v", storage.ErrAuthenticationRequired, err)
+		}
+		return fmt.Errorf("grpc provider: %w: %v", storage.ErrAuthentication, err)
+	case codes.PermissionDenied:
 		return fmt.Errorf("grpc provider: %w: %v", storage.ErrAuthentication, err)
 	case codes.ResourceExhausted:
 		return fmt.Errorf("grpc provider: %w: %v", storage.ErrQuotaExceeded, err)

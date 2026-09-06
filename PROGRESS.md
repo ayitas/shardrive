@@ -1304,6 +1304,12 @@ the first live transfer, then started again with the same encrypted vault and
 master key without re-importing or logging in. A second Go-to-gRPC-to-Proton
 transfer passed health, upload, download SHA-256, and remote cleanup.
 
+Provider error state synchronization is now explicit: gRPC unauthenticated
+responses that indicate a missing session map to `AUTH_REQUIRED`, while other
+authentication failures map to `AUTH_FAILED`. The account refresh layer stores
+the corresponding provider-neutral error codes for the dashboard and future
+placement filtering; no Proton-specific error type enters the Go core.
+
 Additional verification:
 
 ```text
@@ -1316,6 +1322,9 @@ SHARDRIVE_LIVE_GRPC_ADDRESS=127.0.0.1:50051 SHARDRIVE_LIVE_ACCOUNT_ID=account-1 
 # The live command above was executed once before and once after an adapter
 # restart using the same encrypted session vault.
 ```
+
+The state mapping increment also passed the targeted provider/account tests,
+full `go test ./...`, `go vet ./...`, and `git diff --check`.
 
 Next three tasks are: add account/provider health state synchronization to the
 Go account repository for Proton failures, wire one configured Proton account

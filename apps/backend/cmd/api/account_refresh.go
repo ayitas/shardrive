@@ -37,6 +37,8 @@ func failedObservation(value account.Account, err error) account.RefreshObservat
 	state := account.StateOffline
 	code := "provider_unavailable"
 	switch {
+	case errors.Is(err, storage.ErrAuthenticationRequired):
+		state, code = account.StateAuthRequired, "authentication_required"
 	case errors.Is(err, storage.ErrAuthentication):
 		state, code = account.StateAuthFailed, "authentication_failed"
 	case errors.Is(err, storage.ErrRateLimited):
